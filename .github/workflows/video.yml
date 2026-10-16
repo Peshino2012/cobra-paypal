@@ -1,0 +1,36 @@
+name: video
+
+# Graba el video de demo contra la app publicada, con narración de Workers AI (Aura 2), y lo deja como artefacto.
+on:
+  workflow_dispatch:
+
+jobs:
+  grabar:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - name: Narración
+        run: node video/narrar.mjs
+      - name: Grabación
+        run: node video/grabar.mjs https://cobra.peshino2012.workers.dev
+      - name: Montaje
+        run: node video/armar.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: video
+          path: |
+            video/out/cobra-demo.mp4
+            video/out/hoja.png
+            video/out/marcas.json
+            video/out/duraciones.json
