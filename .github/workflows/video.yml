@@ -22,6 +22,10 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - name: Voces ya generadas (rama demo-video)
+        run: |
+          mkdir -p video/out
+          (git fetch -q --depth 1 origin demo-video && git archive FETCH_HEAD voces | tar -x -C video/out) || echo "Sin voces guardadas todavía"
       - name: Narración
         run: node video/narrar.mjs
       - name: Grabación
@@ -41,6 +45,6 @@ jobs:
         run: |
           cd video/out
           git init -q -b demo-video
-          git add cobra-demo.mp4 hoja.png marcas.json duraciones.json
+          git add cobra-demo.mp4 hoja.png marcas.json duraciones.json voces
           git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q -m "Video de demo (${GITHUB_SHA::7})"
           git push -f -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" demo-video

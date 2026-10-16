@@ -1,17 +1,14 @@
 name: en-vivo
 
 # Recorrido completo contra la app publicada (Workers AI y PayPal sandbox reales).
+# A mano o una vez por semana: cada corrida gasta cuota diaria de Workers AI que es para los usuarios.
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: [deploy]
-    types: [completed]
   schedule:
     - cron: '17 12 * * 3'
 
 jobs:
   probar:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
