@@ -15,6 +15,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Permisos que PayPal le da a la app
+        env:
+          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+          PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+        run: |
+          curl -sS -u "$PAYPAL_CLIENT_ID:$PAYPAL_CLIENT_SECRET" -d grant_type=client_credentials \
+            https://api-m.sandbox.paypal.com/v1/oauth2/token \
+            | jq '{expires_in, app_id, invoicing: (.scope | contains("services/invoicing")), scopes: (.scope | split(" ") | map(sub("https://uri.paypal.com/services/"; "")))}'
       - name: Borrador real en el sandbox
         env:
           PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}

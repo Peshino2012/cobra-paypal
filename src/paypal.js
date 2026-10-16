@@ -62,6 +62,7 @@ export function crearPaypal({ clientId, secret, base = 'https://api-m.sandbox.pa
     listar: (pagina = 1, tamano = 50) => pedir('GET', `/v2/invoicing/invoices?page=${pagina}&page_size=${tamano}&total_required=true`),
     crearWebhook: (url, eventos) => pedir('POST', '/v1/notifications/webhooks', { url, event_types: eventos.map((name) => ({ name })) }),
     listarWebhooks: async () => (await pedir('GET', '/v1/notifications/webhooks'))?.webhooks || [],
+    borrarWebhook: (id) => pedir('DELETE', `/v1/notifications/webhooks/${id}`),
     /** Verifica la firma de un webhook con la API de PayPal. */
     async verificarWebhook(encabezados, evento, webhookId) {
       const h = (n) => encabezados.get(n);

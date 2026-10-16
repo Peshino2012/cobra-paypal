@@ -46,6 +46,11 @@ export function crearPaypalFalso() {
       webhooks.push(w);
       return Response.json(w, { status: 201 });
     }
+    const wh = p.match(/^\/v1\/notifications\/webhooks\/([^/]+)$/);
+    if (wh && metodo === 'DELETE') {
+      webhooks.splice(webhooks.findIndex((w) => w.id === wh[1]), 1);
+      return new Response(null, { status: 204 });
+    }
     if (p === '/v1/notifications/verify-webhook-signature') return Response.json({ verification_status: cuerpo.transmission_sig === 'firma-buena' ? 'SUCCESS' : 'FAILURE' });
     return null;
   };

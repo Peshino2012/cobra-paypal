@@ -87,6 +87,8 @@ test('recordatorio, pago por webhook y consultas', async () => {
   // El cliente paga y PayPal avisa por webhook (con firma verificada por la API de PayPal).
   await cron(env);
   assert.equal(pp.webhooks.length, 1, 'el cron registra el webhook una vez');
+  await cron(env);
+  assert.equal(pp.webhooks.length, 1, 'y no lo duplica');
   pp.pagar('INV2-0001');
   const evento = { event_type: 'INVOICING.INVOICE.PAID', resource: { invoice: { id: 'INV2-0001' } } };
   const mal = await worker.fetch(new Request(`${BASE}/api/paypal/webhook`, { method: 'POST', body: JSON.stringify(evento), headers: { 'paypal-transmission-sig': 'trucha' } }), env);
@@ -151,4 +153,15 @@ test('voz: Whisper transcribe y el agente (IA) arma el borrador', async () => {
   assert.match(r.datos.transcripcion, /Umbrella/);
   assert.equal(ultimo(r).datos.borrador.total, 500);
   assert.deepEqual(llamadas, ['@cf/openai/whisper-large-v3-turbo', '@cf/meta/llama-3.3-70b-instruct-fp8-fast']);
+});
+
+test('si cambia la dirección de la app, el cron mueve el webhook', async () => {
+  const { env, pp } = crearMundo();
+  await cron(env);
+  assert.deepEqual(pp.webhooks.map((w) => w.url), [`${BASE}/api/paypal/webhook`]);
+  env.APP_URL = 'https://cobra.nueva.test';
+  await cron(env);
+  assert.deepEqual(pp.webhooks.map((w) => w.url), ['https://cobra.nueva.test/api/paypal/webhook'], 'borra el viejo y crea el nuevo');
+  const { valor } = await env.DB.prepare("SELECT valor FROM ajustes WHERE clave = 'webhook_id'").first();
+  assert.equal(valor, pp.webhooks[0].id);
 });

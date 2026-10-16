@@ -331,13 +331,17 @@ async function recordatoriosAutomaticos(env, { limite = 10, ahora = Date.now() }
 /** Registra el webhook de PayPal una sola vez (guarda su id para verificar firmas). */
 async function asegurarWebhook(env) {
   if (!env.APP_URL?.startsWith('https://')) return null;
-  const guardado = await env.DB.prepare("SELECT valor FROM ajustes WHERE clave = 'webhook_id'").first();
-  if (guardado) return guardado.valor;
-  const pp = paypalDe(env);
   const url = `${env.APP_URL}/api/paypal/webhook`;
-  const existente = (await pp.listarWebhooks()).find((w) => w.url === url);
-  const id = existente?.id || (await pp.crearWebhook(url, EVENTOS_PAYPAL)).id;
-  await env.DB.prepare("INSERT OR REPLACE INTO ajustes (clave, valor) VALUES ('webhook_id', ?)").bind(id).run();
+  const ajuste = (clave) => env.DB.prepare('SELECT valor FROM ajustes WHERE clave = ?').bind(clave).first();
+  const [guardado, guardadaUrl] = await Promise.all([ajuste('webhook_id'), ajuste('webhook_url')]);
+  if (guardado && guardadaUrl?.valor === url) return guardado.valor;
+  const pp = paypalDe(env);
+  const webhooks = await pp.listarWebhooks();
+  // Si cambió la dirección de la app, se borran los webhooks de Cobra que apuntan a la vieja.
+  for (const w of webhooks) if (w.url !== url && w.url.endsWith('/api/paypal/webhook')) await pp.borrarWebhook(w.id).catch(() => {});
+  const id = webhooks.find((w) => w.url === url)?.id || (await pp.crearWebhook(url, EVENTOS_PAYPAL)).id;
+  const guardar = env.DB.prepare('INSERT OR REPLACE INTO ajustes (clave, valor) VALUES (?, ?)');
+  await env.DB.batch([guardar.bind('webhook_id', id), guardar.bind('webhook_url', url)]);
   return id;
 }
 

@@ -7,13 +7,10 @@ export function crearD1() {
   const db = new DatabaseSync(':memory:');
   const dir = new URL('../migrations/', import.meta.url);
   for (const f of readdirSync(dir).sort()) db.exec(readFileSync(new URL(f, dir), 'utf8'));
-  const preparar = (sql) => {
-    let params = [];
+  // Como en D1, bind() devuelve una sentencia nueva: la misma se puede atar varias veces.
+  const preparar = (sql, params = []) => {
     const st = {
-      bind(...p) {
-        params = p.map((x) => (x === undefined ? null : typeof x === 'boolean' ? Number(x) : x));
-        return st;
-      },
+      bind: (...p) => preparar(sql, p.map((x) => (x === undefined ? null : typeof x === 'boolean' ? Number(x) : x))),
       async first() {
         return db.prepare(sql).get(...params) ?? null;
       },

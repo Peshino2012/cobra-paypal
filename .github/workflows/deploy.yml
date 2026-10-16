@@ -48,11 +48,11 @@ jobs:
           if [ -z "$ID" ]; then npx wrangler d1 create cobra; ID=$(id); fi
           sed -i "s/REEMPLAZAR_EN_EL_DEPLOY/$ID/" wrangler.toml
           npx wrangler d1 migrations apply cobra --remote
-      - name: Subdominio workers.dev (se crea la primera vez)
+      - name: Subdominio workers.dev (peshino2012)
         run: |
           API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain"
           SUB=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API" | jq -r '.result.subdomain // empty')
-          if [ -n "$SUB" ]; then echo "Subdominio: $SUB"; exit 0; fi
+          if [ "$SUB" = peshino2012 ]; then echo "Subdominio: $SUB"; exit 0; fi
           curl -sS -X PUT -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' \
             --data '{"subdomain":"peshino2012"}' "$API" | jq '{success, errors}'
       - name: Deploy
@@ -79,7 +79,7 @@ jobs:
       - name: Prueba en vivo
         run: |
           set -euo pipefail
-          probar() { for i in 1 2 3 4 5 6; do curl -fsS "$@" && return 0; sleep 5; done; curl -sS -i "$@"; return 1; }
+          probar() { for i in $(seq 24); do curl -fsS "$@" && return 0; sleep 10; done; curl -sS -i "$@"; return 1; }
           probar "$URL/api/salud"
           probar -H 'X-Cobra: 1' "$URL/api/estado" > estado.json
           jq '{idioma: .espacio.idioma, dolar: .dolar, facturas: (.facturas | length)}' estado.json
