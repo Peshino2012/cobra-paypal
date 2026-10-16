@@ -23,6 +23,7 @@ test('reglas: inglés, miles y euros', () => {
 
 test('reglas: recordatorios, consultas y ayuda', () => {
   assert.equal(interpretarSinIA('Mandale un recordatorio a Acme Corp', { clientes: ['Acme Corp'] }).objetivo.cliente, 'Acme Corp');
+  assert.equal(interpretarSinIA('Send Globex a friendly reminder', { clientes: ['Acme Corp', 'Globex Corp'] }).objetivo.cliente, 'Globex Corp', 'alcanza con la primera palabra');
   assert.equal(interpretarSinIA('Who owes me money?').filtro, 'unpaid');
   assert.equal(interpretarSinIA('¿Qué facturas están vencidas?').filtro, 'overdue');
   assert.equal(interpretarSinIA('Acme me pagó en efectivo', { clientes: ['Acme'] }).intent, 'mark_paid');

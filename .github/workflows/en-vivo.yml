@@ -1,0 +1,21 @@
+name: en-vivo
+
+# Recorrido completo contra la app publicada (Workers AI y PayPal sandbox reales).
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [deploy]
+    types: [completed]
+  schedule:
+    - cron: '17 12 * * 3'
+
+jobs:
+  probar:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node e2e/en-vivo.mjs https://cobra.peshino2012.workers.dev

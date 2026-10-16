@@ -103,7 +103,9 @@ export function interpretarSinIA(texto, { clientes = [], idioma: idiomaPorDefect
   const t = String(texto || '');
   const language = detectarIdioma(t, idiomaPorDefecto);
   const email = t.match(/[^\s@,;]+@[^\s@,;]+\.[a-z]{2,}/i)?.[0] || '';
-  const clienteConocido = clientes.find((c) => new RegExp(`\\b${c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(t));
+  const palabra = (p) => new RegExp(`\\b${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+  // Nombre completo ("Globex Corp") o solo su primera palabra ("Globex").
+  const clienteConocido = clientes.find((c) => palabra(c).test(t)) || clientes.find((c) => c.split(/\s+/)[0].length >= 3 && palabra(c.split(/\s+/)[0]).test(t));
   const cliente =
     clienteConocido ||
     t.match(/\b(?:[Ii]nvoice|[Bb]ill|[Cc]harge|[Ff]actur[aá](?:le)?|[Cc]obr[aá]le)\s+([A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*)*)/)?.[1] ||
