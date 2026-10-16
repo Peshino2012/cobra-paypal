@@ -119,7 +119,7 @@ test('cancelar, marcar pagada, recordatorios automáticos y CSRF', async () => {
   assert.equal((await api(`/api/facturas/${cancelar.datos.paypal_id}/cancelar`, { metodo: 'POST', cuerpo: {} })).datos.factura.estado, 'CANCELLED');
 
   // La factura de Initech vencía hoy: dos días después el cron le manda un recordatorio solo.
-  for (const inv of pp.facturas.values()) if (inv.primary_recipients[0].billing_info.name.full_name === 'Initech') inv.detail.payment_term.due_date = '2026-01-01';
+  for (const inv of pp.facturas.values()) if (inv.primary_recipients[0].billing_info.business_name === 'Initech') inv.detail.payment_term.due_date = '2026-01-01';
   await env.DB.prepare("UPDATE facturas SET vence = '2026-01-01' WHERE cliente = 'Initech'").run();
   await cron(env);
   assert.equal(pp.llamadas.filter((l) => l.ruta.endsWith('/remind')).length, 1);

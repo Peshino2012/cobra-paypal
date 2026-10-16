@@ -124,7 +124,7 @@ async function guardarFactura(env, inv, espacioId, extras = {}) {
   await env.DB.prepare(
     `INSERT INTO facturas (paypal_id, espacio_id, numero, cliente, email, concepto, monto, moneda, estado, vence, url_pago, idioma, creada, pagada, ars_oficial, ars_mep, actualizada)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(paypal_id) DO UPDATE SET numero = excluded.numero, cliente = excluded.cliente, email = excluded.email, concepto = excluded.concepto, monto = excluded.monto,
+     ON CONFLICT(paypal_id) DO UPDATE SET numero = excluded.numero, cliente = CASE WHEN excluded.cliente = excluded.email THEN cliente ELSE excluded.cliente END, email = excluded.email, concepto = excluded.concepto, monto = excluded.monto,
        moneda = excluded.moneda, estado = excluded.estado, vence = excluded.vence, url_pago = COALESCE(excluded.url_pago, url_pago), pagada = excluded.pagada,
        ars_oficial = excluded.ars_oficial, ars_mep = excluded.ars_mep, actualizada = excluded.actualizada`,
   )

@@ -53,8 +53,11 @@ jobs:
           API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain"
           SUB=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API" | jq -r '.result.subdomain // empty')
           if [ "$SUB" = peshino2012 ]; then echo "Subdominio: $SUB"; exit 0; fi
-          curl -sS -X PUT -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' \
-            --data '{"subdomain":"peshino2012"}' "$API" | jq '{success, errors}'
+          poner() { curl -sS -X PUT -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' \
+            --data "{\"subdomain\":\"$1\"}" "$API" | tee /dev/stderr | jq -e .success >/dev/null; }
+          # Cloudflare no deja renombrarlo: se libera el actual y se registra el nuevo (si falla, vuelve el anterior).
+          if [ -n "$SUB" ]; then curl -sS -X DELETE -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API" | jq '{success, errors}'; fi
+          poner peshino2012 || { [ -n "$SUB" ] && poner "$SUB"; }
       - name: Deploy
         run: |
           set -euo pipefail

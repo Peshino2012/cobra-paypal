@@ -51,5 +51,5 @@ jobs:
           const token = await pp.obtenerToken();
           const r = await fetch('https://api-m.sandbox.paypal.com/v2/invoicing/invoices/' + inv.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
           console.log('borrado:', r.status);
-          if (leida.status !== 'DRAFT' || r.status !== 204) process.exit(1);
+          if (leida.status !== 'DRAFT' || filaDesdePaypal(leida).cliente !== 'Cobra CI' || r.status !== 204) process.exit(1);
           "

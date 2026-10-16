@@ -15,7 +15,7 @@ export function crearPaypalFalso() {
     if (p === '/v2/invoicing/invoices' && metodo === 'POST') {
       const id = `INV2-${String(facturas.size + 1).padStart(4, '0')}`;
       const total = cuerpo.items.reduce((s, i) => s + Number(i.quantity) * Number(i.unit_amount.value), 0);
-      const inv = { id, status: 'DRAFT', detail: { ...cuerpo.detail, metadata: {} }, primary_recipients: cuerpo.primary_recipients, items: cuerpo.items, amount: { currency_code: cuerpo.detail.currency_code, value: total.toFixed(2) } };
+      const inv = { id, status: 'DRAFT', detail: { ...cuerpo.detail, metadata: {} }, primary_recipients: cuerpo.primary_recipients.map(({ billing_info: { name, ...resto } }) => ({ billing_info: resto })), items: cuerpo.items, amount: { currency_code: cuerpo.detail.currency_code, value: total.toFixed(2) } };
       facturas.set(id, inv);
       return Response.json(inv, { status: 201 });
     }

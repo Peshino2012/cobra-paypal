@@ -48,8 +48,9 @@ export function payloadPaypal(borrador, { numero, hoy = new Date(), emisor } = {
       ...(borrador.nota ? { note: borrador.nota } : {}),
       memo: 'Created with Cobra',
     },
-    ...(emisor ? { invoicer: { name: { full_name: emisor } } } : {}),
-    primary_recipients: [{ billing_info: { name: { full_name: borrador.cliente }, email_address: borrador.email } }],
+    // PayPal no devuelve name.full_name: el nombre del cliente (casi siempre una empresa) va en business_name.
+    ...(emisor ? { invoicer: { business_name: emisor } } : {}),
+    primary_recipients: [{ billing_info: { business_name: borrador.cliente, email_address: borrador.email } }],
     items: borrador.items.map((i) => ({
       name: i.descripcion,
       quantity: String(i.cantidad),
@@ -70,7 +71,7 @@ export function filaDesdePaypal(inv, { espacioId } = {}) {
     paypal_id: inv.id,
     espacio_id: espacioId,
     numero: d.invoice_number || null,
-    cliente: rec.name?.full_name || [rec.name?.given_name, rec.name?.surname].filter(Boolean).join(' ') || rec.email_address || '',
+    cliente: rec.business_name || rec.name?.full_name || [rec.name?.given_name, rec.name?.surname].filter(Boolean).join(' ') || rec.email_address || '',
     email: rec.email_address || null,
     concepto: (inv.items || []).map((i) => i.name).join(', ').slice(0, 300),
     monto: Number(inv.amount?.value ?? inv.due_amount?.value ?? 0),

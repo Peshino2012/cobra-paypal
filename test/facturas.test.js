@@ -22,7 +22,7 @@ test('payload de Invoicing v2', () => {
   assert.equal(p.detail.currency_code, 'USD');
   assert.equal(p.detail.invoice_number, '0007');
   assert.deepEqual(p.detail.payment_term, { term_type: 'DUE_ON_DATE_SPECIFIED', due_date: '2026-10-29' });
-  assert.equal(p.primary_recipients[0].billing_info.email_address, 'ap@acme.com');
+  assert.deepEqual(p.primary_recipients[0].billing_info, { business_name: 'Acme Corp', email_address: 'ap@acme.com' });
   assert.deepEqual(p.items[0], { name: 'Logo', quantity: '2', unit_amount: { currency_code: 'USD', value: '400.00' }, unit_of_measure: 'QUANTITY' });
 });
 
