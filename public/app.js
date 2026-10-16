@@ -73,7 +73,21 @@ function toast(msg) {
   toastTimer = setTimeout(() => (e.hidden = true), 3500);
 }
 
-async function api(ruta, { metodo = 'GET', cuerpo, crudo, tipo } = {}) {
+// Pedidos en curso que cambian el chat, y cuántos hubo: el refresco automático no repinta en el medio
+// (si lo hiciera, el mensaje del usuario, ya guardado en el servidor, aparecería dos veces).
+let ocupado = 0;
+let cambios = 0;
+async function api(ruta, opciones = {}) {
+  if ((opciones.metodo || 'GET') === 'GET') return pedir(ruta, opciones);
+  ocupado++;
+  cambios++;
+  try {
+    return await pedir(ruta, opciones);
+  } finally {
+    ocupado--;
+  }
+}
+async function pedir(ruta, { metodo = 'GET', cuerpo, crudo, tipo } = {}) {
   const r = await fetch(ruta, {
     method: metodo,
     headers: { 'X-Cobra': '1', ...(cuerpo ? { 'Content-Type': 'application/json' } : {}), ...(tipo ? { 'Content-Type': tipo } : {}) },
@@ -426,10 +440,11 @@ async function iniciar() {
   pintarMensajes(estado.mensajes);
   // Los pagos llegan por webhook: refrescamos de vez en cuando para mostrarlos.
   setInterval(async () => {
-    if (document.hidden) return;
+    if (document.hidden || ocupado) return;
     const n = estado.mensajes.length;
+    const c = cambios;
     await refrescar();
-    if (estado.mensajes.length !== n) pintarMensajes(estado.mensajes);
+    if (!ocupado && c === cambios && estado.mensajes.length !== n) pintarMensajes(estado.mensajes);
   }, 20000);
 }
 

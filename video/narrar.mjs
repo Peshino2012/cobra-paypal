@@ -38,6 +38,7 @@ const duracion = (archivo) => Number(execFileSync('ffprobe', ['-v', 'error', '-s
 
 const duraciones = {};
 for (const e of ESCENAS) {
+  if (!e.narracion) continue;
   const archivo = `${OUT}${e.id}.mp3`;
   writeFileSync(archivo, await hablar(e.narracion, 'en'));
   duraciones[e.id] = duracion(archivo);
@@ -46,7 +47,7 @@ for (const e of ESCENAS) {
 writeFileSync(`${OUT}voz.mp3`, await hablar(NOTA_DE_VOZ, 'es'));
 // Chromium usa este WAV como micrófono falso.
 execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', `${OUT}voz.mp3`, '-ac', '1', '-ar', '48000', '-sample_fmt', 's16', `${OUT}voz.wav`]);
-duraciones.voz = duracion(`${OUT}voz.wav`);
-const total = ESCENAS.reduce((s, e) => s + duraciones[e.id], 0);
-console.log(`nota de voz: ${duraciones.voz.toFixed(1)} s · narración total: ${total.toFixed(1)} s`);
+duraciones.notaDeVoz = duracion(`${OUT}voz.wav`);
+const total = ESCENAS.reduce((s, e) => s + (duraciones[e.id] || 0), 0);
+console.log(`nota de voz: ${duraciones.notaDeVoz.toFixed(1)} s · narración total: ${total.toFixed(1)} s`);
 writeFileSync(`${OUT}duraciones.json`, JSON.stringify(duraciones, null, 2));

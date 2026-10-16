@@ -25,8 +25,15 @@ export const ESCENAS = [
   },
   {
     id: 'voz',
-    rotulo: 'Voice note in Spanish → Whisper → draft (email remembered from the last invoice)',
-    narracion: 'Freelancers here live on voice notes, so Cobra understands them too, in Spanish, English or Portuguese. Whisper transcribes the audio, and the agent remembers this client’s email from the previous invoice.',
+    rotulo: 'Voice notes in Spanish, English or Portuguese',
+    narracion: 'Freelancers here live on voice notes, so Cobra understands them too, in Spanish, English or Portuguese. Here is one in Spanish.',
+  },
+  // Sin narración: se escucha la nota de voz.
+  { id: 'vozNota', rotulo: '🎙️ “Facturale a Delta Studio 500 dólares más por el mantenimiento de noviembre”' },
+  {
+    id: 'vozBorrador',
+    rotulo: 'Whisper → Llama 3.3 → draft, with the client’s email from the previous invoice',
+    narracion: 'Whisper transcribes the audio, Llama turns it into a draft, and Cobra fills in this client’s email from the previous invoice. One tap, and it is sent.',
   },
   {
     id: 'recordatorio',

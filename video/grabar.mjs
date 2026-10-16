@@ -77,7 +77,7 @@ async function esperarNuevo(texto, accion) {
 }
 async function crearYEnviar() {
   const email = ultimoAsistente().getByLabel('Client email');
-  if (!(await email.inputValue())) await email.fill('billing@example.com');
+  if (!(await email.inputValue())) throw new Error('El borrador quedó sin email: la narración dice que Cobra lo completa');
   await esperarNuevo(/was sent to/, () => ultimoAsistente().getByRole('button', { name: /Create & send/ }).click());
   return (await ultimoAsistente().textContent()).match(/#(\d+)/)?.[1];
 }
@@ -102,19 +102,23 @@ const ACCIONES = {
   async paypal() {
     if (!datos.urlPago) return;
     await page.goto(datos.urlPago, { timeout: 30000 }).catch(() => {});
+    await page.getByRole('button', { name: /accept/i }).first().click({ timeout: 4000 }).catch(() => {});
     await rotulo().catch(() => {});
     await esperar(3000);
   },
   async voz() {
     await abrirApp();
-    await esperar(800);
-    const antes = await page.locator('.msj.assistant').count();
+  },
+  async vozNota() {
+    datos.asistentesAntes = await page.locator('.msj.assistant').count();
     datos.vozInicio = ahora();
     await page.getByRole('button', { name: 'Record a voice note' }).click();
-    await esperar(DUR.voz * 1000 + 700);
+    await esperar(DUR.notaDeVoz * 1000 + 700);
     await page.getByRole('button', { name: 'Record a voice note' }).click();
-    await page.waitForFunction((n) => document.querySelectorAll('.msj.assistant').length > n && document.querySelector('.msj.assistant:last-child button'), antes, { timeout: 60000 });
-    await esperar(2500);
+  },
+  async vozBorrador() {
+    await page.waitForFunction((n) => document.querySelectorAll('.msj.assistant').length > n && document.querySelector('.msj.assistant:last-child button'), datos.asistentesAntes, { timeout: 60000 });
+    await esperar(3000);
     datos.n2 = await crearYEnviar();
   },
   async recordatorio() {
@@ -149,8 +153,8 @@ for (const e of ESCENAS) {
   const inicio = ahora();
   marcas.push({ id: e.id, t: inicio });
   rotuloActual = e.rotulo || '';
-  if (['enviar', 'recordatorio', 'pagado', 'tablero', 'consulta'].includes(e.id)) await rotulo();
-  await Promise.all([ACCIONES[e.id](), esperar(DUR[e.id] * 1000 + 600)]);
+  if (['enviar', 'vozNota', 'vozBorrador', 'recordatorio', 'pagado', 'tablero', 'consulta'].includes(e.id)) await rotulo();
+  await Promise.all([ACCIONES[e.id](), esperar((DUR[e.id] || 0) * 1000 + 600)]);
   console.log(`${e.id}: ${inicio.toFixed(1)}–${ahora().toFixed(1)} s`);
 }
 await esperar(1200);

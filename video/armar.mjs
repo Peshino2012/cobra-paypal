@@ -1,7 +1,7 @@
 // Junta el video grabado con la narración (cada escena en su segundo) y la nota de voz → out/cobra-demo.mp4,
 // más una hoja de contacto (out/hoja.png) para revisarlo de un vistazo.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 const OUT = new URL('./out/', import.meta.url).pathname;
 const { marcas, vozInicio, duracionTotal } = JSON.parse(readFileSync(`${OUT}marcas.json`, 'utf8'));
@@ -16,7 +16,7 @@ const sumar = (archivo, segundos, volumen = 1) => {
   filtros.push(`[${k}:a]aresample=48000,aformat=channel_layouts=stereo,volume=${volumen},adelay=${ms}|${ms}[a${k}]`);
   pistas.push(`[a${k}]`);
 };
-for (const m of marcas) sumar(`${OUT}${m.id}.mp3`, m.t + 0.25);
+for (const m of marcas) if (existsSync(`${OUT}${m.id}.mp3`)) sumar(`${OUT}${m.id}.mp3`, m.t + 0.25);
 if (vozInicio != null) sumar(`${OUT}voz.wav`, vozInicio + 0.3, 0.8);
 filtros.push(`${pistas.join('')}amix=inputs=${pistas.length}:normalize=0:dropout_transition=0[a]`);
 args.push(

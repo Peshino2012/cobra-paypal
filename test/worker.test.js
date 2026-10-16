@@ -165,3 +165,12 @@ test('si cambia la dirección de la app, el cron mueve el webhook', async () => 
   const { valor } = await env.DB.prepare("SELECT valor FROM ajustes WHERE clave = 'webhook_id'").first();
   assert.equal(valor, pp.webhooks[0].id);
 });
+
+test('un cliente conocido no necesita repetir el email', async () => {
+  const { api } = crearMundo();
+  const b = ultimo(await api('/api/mensaje', { metodo: 'POST', cuerpo: { texto: 'Facturale 800 dólares a Delta Studio por el logo, billing@delta.test' } })).datos;
+  await api('/api/facturas', { metodo: 'POST', cuerpo: { borrador: b.borrador } });
+  const otra = ultimo(await api('/api/mensaje', { metodo: 'POST', cuerpo: { texto: 'Facturale a Delta 500 dólares más por el mantenimiento' } })).datos;
+  assert.equal(otra.borrador.email, 'billing@delta.test');
+  assert.deepEqual(otra.faltan, []);
+});

@@ -193,7 +193,10 @@ async function procesarMensaje(env, espacio, texto) {
   if (i.intent === 'create_invoice') {
     // Si el cliente ya existe, completamos su email.
     if (!i.borrador.email && i.borrador.cliente) {
-      const conocido = facturas.find((f) => f.cliente?.toLowerCase() === i.borrador.cliente.toLowerCase() && f.email);
+      const nombre = i.borrador.cliente.toLowerCase().trim();
+      const mismo = (f) => f.cliente?.toLowerCase() === nombre;
+      const parecido = (f) => f.cliente && (f.cliente.toLowerCase().includes(nombre) || nombre.includes(f.cliente.toLowerCase()));
+      const conocido = facturas.find((f) => f.email && mismo(f)) || facturas.find((f) => f.email && parecido(f));
       if (conocido) i.borrador.email = conocido.email;
     }
     const v = validarBorrador(i.borrador);
