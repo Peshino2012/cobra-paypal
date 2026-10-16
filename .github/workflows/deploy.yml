@@ -79,6 +79,8 @@ jobs:
       - name: Prueba en vivo
         run: |
           set -euo pipefail
-          for i in 1 2 3 4 5; do curl -fsS "$URL/api/salud" && break || sleep 5; done
-          curl -fsS -H 'X-Cobra: 1' "$URL/api/estado" | jq '{idioma: .espacio.idioma, dolar: .dolar, facturas: (.facturas | length)}'
+          probar() { for i in 1 2 3 4 5 6; do curl -fsS "$@" && return 0; sleep 5; done; curl -sS -i "$@"; return 1; }
+          probar "$URL/api/salud"
+          probar -H 'X-Cobra: 1' "$URL/api/estado" > estado.json
+          jq '{idioma: .espacio.idioma, dolar: .dolar, facturas: (.facturas | length)}' estado.json
           echo "### Cobra publicada en $URL" >> "$GITHUB_STEP_SUMMARY"
