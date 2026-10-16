@@ -32,7 +32,7 @@ for (const t of ['Facturale 1.200 dólares a Globex por la landing page, pay@glo
 }
 // Globex paga desde el link de PayPal; Initech queda vencida.
 paypal.pagar('INV2-0002');
-for (const inv of paypal.facturas.values()) if (inv.primary_recipients[0].billing_info.name.full_name === 'Initech') inv.detail.payment_term.due_date = '2026-10-01';
+for (const inv of paypal.facturas.values()) if (inv.primary_recipients[0].billing_info.business_name === 'Initech') inv.detail.payment_term.due_date = '2026-10-01';
 await page.getByRole('button', { name: /Sincronizar/ }).click();
 await page.getByText(/Globex pagó la factura/).waitFor();
 await decir('Mandale un recordatorio a Initech');
