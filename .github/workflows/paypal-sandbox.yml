@@ -19,10 +19,21 @@ jobs:
         env:
           PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
           PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+        # PayPal reusa el token mientras no venza (hasta 9 h), con los permisos que la app tenía
+        # cuando se emitió. Si le falta Invoicing, se termina ese token y se pide uno nuevo.
         run: |
-          curl -sS -u "$PAYPAL_CLIENT_ID:$PAYPAL_CLIENT_SECRET" -d grant_type=client_credentials \
-            https://api-m.sandbox.paypal.com/v1/oauth2/token \
-            | jq '{expires_in, app_id, invoicing: (.scope | contains("services/invoicing")), scopes: (.scope | split(" ") | map(sub("https://uri.paypal.com/services/"; "")))}'
+          API=https://api-m.sandbox.paypal.com/v1/oauth2
+          pedir() { curl -sS -u "$PAYPAL_CLIENT_ID:$PAYPAL_CLIENT_SECRET" -d grant_type=client_credentials "$API/token"; }
+          resumen() { jq '{expires_in, app_id, invoicing: (.scope | contains("services/invoicing")), scopes: (.scope | split(" ") | map(sub("https://uri.paypal.com/services/"; "")))}'; }
+          R=$(pedir); T=$(jq -r .access_token <<<"$R"); echo "::add-mask::$T"
+          resumen <<<"$R"
+          if ! jq -e '.scope | contains("services/invoicing")' <<<"$R" >/dev/null; then
+            echo "Sin Invoicing: termino el token viejo y pido otro"
+            curl -sS -o /dev/null -w 'terminate: %{http_code}\n' -u "$PAYPAL_CLIENT_ID:$PAYPAL_CLIENT_SECRET" \
+              --data-urlencode "token=$T" -d token_type_hint=ACCESS_TOKEN "$API/token/terminate"
+            R=$(pedir); echo "::add-mask::$(jq -r .access_token <<<"$R")"
+            resumen <<<"$R"
+          fi
       - name: Borrador real en el sandbox
         env:
           PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
