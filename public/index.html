@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cobra — AI collections agent for freelancers paid with PayPal</title>
+  <meta name="description" content="Tell Cobra who to bill — by text or voice. It creates and sends PayPal invoices, chases late payers and tracks your income in local currency and tax limits.">
+  <meta name="theme-color" content="#0b3b2e">
+  <link rel="icon" href="/icono.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/estilos.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="marca">
+      <img src="/icono.svg" alt="" width="36" height="36">
+      <div><strong>Cobra</strong><small data-t="tagline">Your AI collections agent</small></div>
+    </div>
+    <div class="top-acciones">
+      <span class="sandbox" data-t="sandbox">PayPal sandbox</span>
+      <button id="btn-idioma" class="btn btn-sutil" type="button" aria-label="Language">ES</button>
+      <button id="btn-ajustes" class="btn btn-sutil" type="button" data-t="ajustes" aria-haspopup="dialog">Settings</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="chat" aria-labelledby="t-chat">
+      <h2 id="t-chat" class="sr-only">Chat</h2>
+      <ol id="mensajes" class="mensajes" aria-live="polite"></ol>
+      <div id="sugerencias" class="sugerencias"></div>
+      <form id="form-chat" class="entrada" autocomplete="off">
+        <button id="btn-voz" class="btn-voz" type="button" aria-pressed="false" data-t-label="voz" aria-label="Record a voice note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12Z"/></svg>
+        </button>
+        <input id="texto" name="texto" data-t-placeholder="placeholder" placeholder="Invoice Acme Corp 800 USD for the logo, ap@acme.com" aria-label="Message">
+        <button class="btn btn-primario" data-t="enviar">Send</button>
+      </form>
+      <p id="grabando" class="grabando" hidden data-t="grabando">Recording… tap the mic again to send.</p>
+    </section>
+
+    <aside class="tablero" aria-labelledby="t-tablero">
+      <h2 id="t-tablero" class="sr-only">Dashboard</h2>
+      <div class="kpis">
+        <div class="kpi"><span data-t="cobrado">Collected (12 months)</span><strong id="k-cobrado">—</strong><small id="k-cobrado-ars"></small></div>
+        <div class="kpi"><span data-t="pendiente">Outstanding</span><strong id="k-pendiente">—</strong><small id="k-pendiente-n"></small></div>
+        <div class="kpi kpi-alerta"><span data-t="vencido">Overdue</span><strong id="k-vencido">—</strong><small id="k-vencido-n"></small></div>
+      </div>
+
+      <section class="caja">
+        <div class="caja-head"><h3 data-t="monotributo">Monotributo (Argentina)</h3><span id="m-cat" class="chip"></span></div>
+        <div class="barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="m-barra"><span id="m-relleno"></span></div>
+        <p id="m-texto" class="nota"></p>
+        <p class="nota dolar"><span data-t="dolarHoy">USD today</span>: <b id="d-oficial">—</b> <span data-t="oficial">official</span> · <b id="d-mep">—</b> MEP</p>
+      </section>
+
+      <section class="caja">
+        <div class="caja-head"><h3 data-t="facturas">Invoices</h3><button id="btn-sync" class="btn btn-sutil btn-chico" type="button" data-t="sincronizar">Sync with PayPal</button></div>
+        <ul id="facturas" class="facturas"></ul>
+        <p id="sin-facturas" class="nota" data-t="sinFacturas">No invoices yet. Ask Cobra to bill your first client.</p>
+      </section>
+    </aside>
+  </main>
+
+  <dialog id="dlg-ajustes" aria-labelledby="t-ajustes">
+    <form method="dialog" id="form-ajustes" class="form">
+      <h2 id="t-ajustes" data-t="ajustes">Settings</h2>
+      <label><span data-t="tuNombre">Your name (shown on invoices)</span><input name="nombre" maxlength="80"></label>
+      <label><span data-t="categoria">Monotributo category</span><select name="categoria"></select></label>
+      <label class="check"><input type="checkbox" name="recordatoriosAuto"> <span data-t="autoRec">Let Cobra remind overdue clients automatically (max. 3 reminders, every 3 days)</span></label>
+      <div class="acciones"><button class="btn" value="cancel" data-t="cerrar">Close</button><button class="btn btn-primario" value="ok" data-t="guardar">Save</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-qr" aria-labelledby="t-qr">
+    <h2 id="t-qr" data-t="qrTitulo">Payment link</h2>
+    <div id="qr" class="qr"></div>
+    <p class="nota" data-t="qrNota">Your client can scan it to pay with PayPal.</p>
+    <form method="dialog"><button class="btn" data-t="cerrar">Close</button></form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

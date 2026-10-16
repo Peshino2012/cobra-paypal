@@ -1,0 +1,23 @@
+name = "cobra"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[assets]
+directory = "public"
+
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cobra"
+database_id = "REEMPLAZAR_EN_EL_DEPLOY"
+migrations_dir = "migrations"
+
+[triggers]
+crons = ["*/10 * * * *"]
+
+[vars]
+PAYPAL_API = "https://api-m.sandbox.paypal.com"
+
+# Secretos (los carga el workflow de deploy): PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, SESSION_SECRET

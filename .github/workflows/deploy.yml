@@ -1,0 +1,84 @@
+name: deploy
+
+# Tests y deploy a Cloudflare Workers en cada push a main.
+# Secrets del repo: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - name: Recorrido en navegador (PayPal simulado)
+        run: mkdir -p capturas && node e2e/capturas.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: capturas
+          path: capturas/
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Base de datos D1 (se crea la primera vez)
+        run: |
+          set -euo pipefail
+          id() { npx wrangler d1 list --json | jq -r '.[] | select(.name=="cobra") | .uuid'; }
+          ID=$(id)
+          if [ -z "$ID" ]; then npx wrangler d1 create cobra; ID=$(id); fi
+          sed -i "s/REEMPLAZAR_EN_EL_DEPLOY/$ID/" wrangler.toml
+          npx wrangler d1 migrations apply cobra --remote
+      - name: Subdominio workers.dev (se crea la primera vez)
+        run: |
+          API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain"
+          SUB=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API" | jq -r '.result.subdomain // empty')
+          if [ -n "$SUB" ]; then echo "Subdominio: $SUB"; exit 0; fi
+          curl -sS -X PUT -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' \
+            --data '{"subdomain":"peshino2012"}' "$API" | jq '{success, errors}'
+      - name: Deploy
+        run: |
+          set -euo pipefail
+          npx wrangler deploy | tee deploy.log
+          URL=$(grep -oE 'https://cobra\.[a-z0-9-]+\.workers\.dev' deploy.log | head -1)
+          echo "URL=$URL" >> "$GITHUB_ENV"
+          npx wrangler deploy --var "APP_URL:$URL"
+      - name: Secretos (SESSION_SECRET se genera una sola vez)
+        env:
+          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+          PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          EXISTENTES=$(npx wrangler secret list | jq -r '.[].name')
+          node -e '
+            const s = { PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET };
+            if (!process.argv[1].split("\n").includes("SESSION_SECRET")) s.SESSION_SECRET = require("crypto").randomBytes(32).toString("base64url");
+            require("fs").writeFileSync("secretos.json", JSON.stringify(s));
+          ' "$EXISTENTES"
+          npx wrangler secret bulk secretos.json
+          rm secretos.json
+      - name: Prueba en vivo
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5; do curl -fsS "$URL/api/salud" && break || sleep 5; done
+          curl -fsS -H 'X-Cobra: 1' "$URL/api/estado" | jq '{idioma: .espacio.idioma, dolar: .dolar, facturas: (.facturas | length)}'
+          echo "### Cobra publicada en $URL" >> "$GITHUB_STEP_SUMMARY"

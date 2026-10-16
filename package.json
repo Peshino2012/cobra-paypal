@@ -1,0 +1,17 @@
+{
+  "name": "cobra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cobra: an AI invoicing agent for Latin American freelancers who get paid with PayPal.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test --test-reporter=spec \"test/*.test.js\"",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "wrangler": "4.150.0"
+  }
+}

@@ -1,0 +1,36 @@
+name: paypal-sandbox
+
+# Prueba contra el sandbox REAL de PayPal con las credenciales del repo:
+# crea un borrador de factura con el mismo código de la app, lo lee y lo borra.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 11 * * 1'
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Borrador real en el sandbox
+        env:
+          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+          PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+        run: |
+          node --input-type=module -e "
+          import { crearPaypal } from './src/paypal.js';
+          import { validarBorrador, payloadPaypal, filaDesdePaypal } from './src/facturas.js';
+          const pp = crearPaypal({ clientId: process.env.PAYPAL_CLIENT_ID, secret: process.env.PAYPAL_CLIENT_SECRET });
+          const { borrador } = validarBorrador({ cliente: 'Cobra CI', email: 'ci@example.com', items: [{ descripcion: 'Sandbox check', precio: 1 }] });
+          const numero = await pp.siguienteNumero();
+          const inv = await pp.crearBorrador(payloadPaypal(borrador, { numero }));
+          const leida = await pp.obtener(inv.id);
+          console.log(JSON.stringify(filaDesdePaypal(leida), null, 2));
+          const token = await pp.obtenerToken();
+          const r = await fetch('https://api-m.sandbox.paypal.com/v2/invoicing/invoices/' + inv.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+          console.log('borrado:', r.status);
+          if (leida.status !== 'DRAFT' || r.status !== 204) process.exit(1);
+          "
