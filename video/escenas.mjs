@@ -31,7 +31,7 @@ export const ESCENAS = [
   {
     id: 'recordatorio',
     rotulo: 'AI-written reminder in the client’s language, sent by PayPal',
-    narracion: 'Chasing payments is the worst part. I ask Cobra to remind Globex, and it writes a friendly reminder in the client’s language. I can edit it before PayPal sends it. With auto-reminders on, Cobra follows up overdue invoices by itself.',
+    narracion: 'Chasing payments is the worst part. I ask Cobra to remind Delta Studio, and it writes a friendly reminder in the client’s language. I can edit it before PayPal sends it. With auto-reminders on, Cobra follows up overdue invoices by itself.',
   },
   {
     id: 'pagado',
@@ -55,4 +55,4 @@ export const ESCENAS = [
 ];
 
 // Nota de voz que "dice" el usuario en la escena de voz (se le pasa a Chromium como micrófono).
-export const NOTA_DE_VOZ = 'Facturale a Globex quinientos dólares más por el mantenimiento de noviembre.';
+export const NOTA_DE_VOZ = 'Facturale a Delta Studio quinientos dólares más por el mantenimiento de noviembre.';

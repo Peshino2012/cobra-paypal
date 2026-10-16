@@ -27,6 +27,8 @@ test('reglas: recordatorios, consultas y ayuda', () => {
   assert.equal(interpretarSinIA('Who owes me money?').filtro, 'unpaid');
   assert.equal(interpretarSinIA('¿Qué facturas están vencidas?').filtro, 'overdue');
   assert.equal(interpretarSinIA('Acme me pagó en efectivo', { clientes: ['Acme'] }).intent, 'mark_paid');
+  const pago = interpretarSinIA('Delta Studio paid invoice #0002 by bank transfer', { clientes: ['Delta Studio'] });
+  assert.deepEqual([pago.intent, pago.objetivo], ['mark_paid', { numero: '0002', cliente: 'Delta Studio' }]);
   assert.equal(interpretarSinIA('hola').intent, 'help');
 });
 

@@ -16,6 +16,15 @@ const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
 
 export const paypal = crearPaypalFalso();
 export const env = { DB: crearD1(), SESSION_SECRET: 'local', PAYPAL_CLIENT_ID: 'local', PAYPAL_CLIENT_SECRET: 'local', APP_URL: `http://127.0.0.1:${PUERTO}`, AI: null };
+// IA_FALSA=1: Whisper simulado (devuelve TEXTO_VOZ) y sin LLM (entra el parser de reglas), para probar la nota de voz.
+if (process.env.IA_FALSA) {
+  env.AI = {
+    async run(modelo) {
+      if (modelo.includes('whisper')) return { text: process.env.TEXTO_VOZ || 'Facturale a Delta Studio 500 dólares más por el mantenimiento de noviembre' };
+      throw new Error('sin LLM en local');
+    },
+  };
+}
 
 const fetchReal = globalThis.fetch;
 globalThis.fetch = async (url, opts) => {

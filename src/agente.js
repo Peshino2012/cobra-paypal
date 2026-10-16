@@ -111,9 +111,10 @@ export function interpretarSinIA(texto, { clientes = [], idioma: idiomaPorDefect
     t.match(/\b(?:[Ii]nvoice|[Bb]ill|[Cc]harge|[Ff]actur[aá](?:le)?|[Cc]obr[aá]le)\s+([A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*)*)/)?.[1] ||
     t.match(/\b(?:a|to|para)\s+([A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*)*)/)?.[1] ||
     '';
-  if (/\b(record|remind|reclam|nudge)/i.test(t)) return normalizar({ intent: 'send_reminder', language, reply: '', target: { client_name: cliente } });
-  if (/\b(cancel|anul)/i.test(t)) return normalizar({ intent: 'cancel_invoice', language, reply: '', target: { client_name: cliente } });
-  if (/\b(pag[oó] en efectivo|me pag[oó]|paid (in )?cash|paid by (bank )?transfer|mark(ed)? (as )?paid|marc[aá] (como )?pagad)/i.test(t)) return normalizar({ intent: 'mark_paid', language, reply: '', target: { client_name: cliente } });
+  const target = { client_name: cliente, invoice_number: t.match(/#\s?(\d{1,10})\b/)?.[1] || null };
+  if (/\b(record|remind|reclam|nudge)/i.test(t)) return normalizar({ intent: 'send_reminder', language, reply: '', target });
+  if (/\b(cancel|anul)/i.test(t)) return normalizar({ intent: 'cancel_invoice', language, reply: '', target });
+  if (/\b(pag[oó]\b.*\b(efectivo|transferencia)|me pag[oó]|paid\b.*\b(cash|transfer)|mark(ed)? (as )?paid|marc[aá] (como )?pagad)/i.test(t)) return normalizar({ intent: 'mark_paid', language, reply: '', target });
   if (/\?|\b(cu[aá]nto|qui[eé]n|qu[eé] facturas|deben|vencid|resumen|how much|who owes|overdue|summary|monotributo|cobr[eé])/i.test(t)) {
     const filtro = /vencid|overdue/i.test(t) ? 'overdue' : /deben|owes|unpaid|impag|pendient/i.test(t) ? 'unpaid' : /cobr[eé]|collected|paid/i.test(t) ? 'paid' : 'all';
     return normalizar({ intent: 'query', language, reply: '', filter: filtro });

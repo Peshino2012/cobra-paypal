@@ -4,6 +4,9 @@ name: video
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   grabar:
     runs-on: ubuntu-latest
@@ -34,3 +37,10 @@ jobs:
             video/out/hoja.png
             video/out/marcas.json
             video/out/duraciones.json
+      - name: Guardar en la rama demo-video
+        run: |
+          cd video/out
+          git init -q -b demo-video
+          git add cobra-demo.mp4 hoja.png marcas.json duraciones.json
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q -m "Video de demo (${GITHUB_SHA::7})"
+          git push -f -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" demo-video
