@@ -43,6 +43,10 @@ test('con IA: usa la respuesta JSON y cae a reglas si falla', async () => {
   assert.equal(r.borrador.dias, 30);
   assert.equal(llamadas[0].entrada.response_format.json_schema, ESQUEMA);
   assert.match(llamadas[0].entrada.messages[0].content, /Today is 2026-10-14/);
+  assert.equal(r.borrador.email, '', 'un email que no está en el mensaje ni en facturas anteriores se descarta');
+  const sinEmail = { run: async () => ({ response: { intent: 'create_invoice', language: 'es', invoice: { client_name: 'Initech', client_email: '', items: [{ description: 'Mantenimiento', unit_price: 300 }] } } }) };
+  assert.equal((await interpretar(sinEmail, 'Facturale 300 dólares a Initech por el mantenimiento, it@example.com')).borrador.email, 'it@example.com', 'si el modelo lo omite, se toma del texto');
+  assert.equal((await interpretar(ai, 'invoice acme 1500', { facturas: [{ email: 'a@acme.com' }] })).borrador.email, 'a@acme.com', 'el de una factura anterior vale');
   const rota = { run: async () => ({ response: 'esto no es json' }) };
   assert.equal((await interpretar(rota, 'Facturale 100 a Acme')).fuente, 'reglas');
   assert.equal((await interpretar(null, 'Facturale 100 a Acme')).fuente, 'reglas');
@@ -51,9 +55,13 @@ test('con IA: usa la respuesta JSON y cae a reglas si falla', async () => {
 test('recordatorio: IA o plantilla en el idioma del cliente', async () => {
   const f = { numero: '0007', cliente: 'Acme', monto: 800, moneda: 'USD', vence: '2026-10-01', vencida: true, concepto: 'Logo' };
   const plantilla = await redactarRecordatorio(null, f, 'es');
-  assert.match(plantilla.note, /venció el 2026-10-01/);
-  const ai = { run: async () => ({ response: { subject: 'Quick note about invoice #0007', note: 'Hi Acme! ...' } }) };
-  assert.equal((await redactarRecordatorio(ai, f, 'en')).subject, 'Quick note about invoice #0007');
+  assert.match(plantilla.note, /venció el 1 de octubre de 2026/);
+  const ai = (note) => ({ run: async () => ({ response: { note } }) });
+  const r = await redactarRecordatorio(ai('Hi Acme! A quick note: invoice #0007 was due on October 1, 2026.'), f, 'en');
+  assert.deepEqual(r, { subject: 'Friendly reminder: invoice #0007', note: 'Hi Acme! A quick note: invoice #0007 was due on October 1, 2026.' });
+  const alDia = { ...f, vencida: false, vence: '2026-10-31' };
+  assert.match((await redactarRecordatorio(ai('Hi Acme, your invoice is overdue!'), alDia, 'en')).note, /is due on October 31, 2026/, 'si inventa un atraso, va la plantilla');
+  assert.match((await redactarRecordatorio(ai('Hello, please pay invoice #0007.'), alDia, 'en')).note, /^Hi Acme,/, 'sin el nombre del cliente, va la plantilla');
 });
 
 test('el prompt incluye las facturas y no pide inventar datos', () => {

@@ -102,7 +102,7 @@ export function detectarIdioma(texto, porDefecto = 'en') {
 export function interpretarSinIA(texto, { clientes = [], idioma: idiomaPorDefecto = 'en' } = {}) {
   const t = String(texto || '');
   const language = detectarIdioma(t, idiomaPorDefecto);
-  const email = t.match(/[^\s@,;]+@[^\s@,;]+\.[a-z]{2,}/i)?.[0] || '';
+  const email = emailDe(t);
   const palabra = (p) => new RegExp(`\\b${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
   // Nombre completo ("Globex Corp") o solo su primera palabra ("Globex").
   const clienteConocido = clientes.find((c) => palabra(c).test(t)) || clientes.find((c) => c.split(/\s+/)[0].length >= 3 && palabra(c.split(/\s+/)[0]).test(t));
@@ -133,6 +133,20 @@ export function interpretarSinIA(texto, { clientes = [], idioma: idiomaPorDefect
   return normalizar({ intent: 'help', language, reply: '' });
 }
 
+const emailDe = (t) => String(t || '').match(/[^\s@,;:()<>]+@[^\s@,;:()<>]+\.[a-z]{2,}/i)?.[0] || '';
+
+/**
+ * El email del borrador sale del mensaje o de una factura anterior, nunca de la imaginación del modelo:
+ * si el modelo no lo puso, se toma del texto; si puso uno que no está en ningún lado, se descarta.
+ */
+function asegurarEmail(borrador, texto, contexto = {}) {
+  if (!borrador) return borrador;
+  const conocidos = new Set((contexto.facturas || []).map((f) => f.email?.toLowerCase()).filter(Boolean));
+  const e = borrador.email.toLowerCase();
+  if (!e || !(String(texto).toLowerCase().includes(e) || conocidos.has(e))) borrador.email = emailDe(texto);
+  return borrador;
+}
+
 /** Interpreta el mensaje con Workers AI; si falla o no hay IA, usa reglas. */
 export async function interpretar(ai, texto, contexto) {
   if (!ai) return { ...interpretarSinIA(texto, contexto), fuente: 'reglas' };
@@ -148,35 +162,48 @@ export async function interpretar(ai, texto, contexto) {
     });
     const j = typeof r?.response === 'string' ? JSON.parse(r.response) : r?.response;
     if (!j?.intent) throw new Error('respuesta sin intent');
-    return { ...normalizar(j), fuente: 'ia' };
+    const n = normalizar(j);
+    asegurarEmail(n.borrador, texto, contexto);
+    return { ...n, fuente: 'ia' };
   } catch {
     return { ...interpretarSinIA(texto, contexto), fuente: 'reglas' };
   }
 }
 
-const PLANTILLAS = {
-  en: (f) => ({ subject: `Friendly reminder: invoice #${f.numero}`, note: `Hi ${f.cliente}, just a friendly reminder that invoice #${f.numero} for ${f.monto.toFixed(2)} ${f.moneda} ${f.vencida ? `was due on ${f.vence}` : `is due on ${f.vence}`}. You can pay it securely with PayPal using the link in this email. Thank you!` }),
-  es: (f) => ({ subject: `Recordatorio: factura #${f.numero}`, note: `Hola ${f.cliente}, te recuerdo que la factura #${f.numero} por ${f.monto.toFixed(2)} ${f.moneda} ${f.vencida ? `venció el ${f.vence}` : `vence el ${f.vence}`}. Podés pagarla de forma segura con PayPal desde el enlace de este correo. ¡Gracias!` }),
-  pt: (f) => ({ subject: `Lembrete: fatura #${f.numero}`, note: `Olá ${f.cliente}, lembramos que a fatura #${f.numero} de ${f.monto.toFixed(2)} ${f.moneda} ${f.vencida ? `venceu em ${f.vence}` : `vence em ${f.vence}`}. Você pode pagar com segurança pelo PayPal usando o link deste e-mail. Obrigado!` }),
-};
+const LOCALES = { en: 'en-US', es: 'es-AR', pt: 'pt-BR' };
+/** "October 31, 2026" / "31 de octubre de 2026": sin ambigüedad entre formatos de fecha. */
+const fechaLarga = (iso, idioma) => (iso ? new Date(`${iso}T12:00:00Z`).toLocaleDateString(LOCALES[idioma] || 'en-US', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : '');
 
-/** Asunto y texto del recordatorio, escrito por la IA en el idioma del cliente (o por plantilla). */
+const PLANTILLAS = {
+  en: (f, d) => ({ subject: `Friendly reminder: invoice #${f.numero}`, note: `Hi ${f.cliente}, just a friendly reminder that invoice #${f.numero} for ${f.monto.toFixed(2)} ${f.moneda} ${f.vencida ? `was due on ${d}` : `is due on ${d}`}. You can pay it securely with PayPal using the link in this email. Thank you!` }),
+  es: (f, d) => ({ subject: `Recordatorio: factura #${f.numero}`, note: `Hola ${f.cliente}, te recuerdo que la factura #${f.numero} por ${f.monto.toFixed(2)} ${f.moneda} ${f.vencida ? `venció el ${d}` : `vence el ${d}`}. Podés pagarla de forma segura con PayPal desde el enlace de este correo. ¡Gracias!` }),
+  pt: (f, d) => ({ subject: `Lembrete: fatura #${f.numero}`, note: `Olá ${f.cliente}, lembramos que a fatura #${f.numero} de ${f.monto.toFixed(2)} ${f.moneda} ${f.vencida ? `venceu em ${d}` : `vence em ${d}`}. Você pode pagar com segurança pelo PayPal usando o link deste e-mail. Obrigado!` }),
+};
+const ATRASO = /overdue|past due|late|vencid|venció|atrasad|vencida|em atraso/i;
+
+/**
+ * Recordatorio en el idioma del cliente. El asunto es fijo (preciso y con el número de factura);
+ * la IA escribe el texto, y si contradice los hechos (atraso inexistente, sin el nombre) se usa la plantilla.
+ */
 export async function redactarRecordatorio(ai, factura, idioma = 'en') {
-  const base = (PLANTILLAS[idioma] || PLANTILLAS.en)(factura);
+  const fecha = fechaLarga(factura.vence, idioma);
+  const base = (PLANTILLAS[idioma] || PLANTILLAS.en)(factura, fecha);
   if (!ai) return base;
   try {
+    const estado = factura.vencida ? `OVERDUE: it was due on ${fecha}` : `NOT overdue yet: it is due on ${fecha}. Do not say it is overdue or late`;
     const r = await ai.run(MODELO, {
       messages: [
-        { role: 'system', content: 'You write short, warm, professional payment reminders for freelancers. Never threaten. Max 350 characters for the note. Reply as JSON {"subject": string, "note": string}.' },
-        { role: 'user', content: `Language: ${idioma}. Client: ${factura.cliente}. Invoice #${factura.numero} for ${factura.monto} ${factura.moneda}, ${factura.vencida ? `overdue since ${factura.vence}` : `due ${factura.vence}`}. Reminders already sent: ${factura.recordatorios || 0}. Concept: ${factura.concepto}.` },
+        { role: 'system', content: 'You write short, warm, professional payment reminders for freelancers. Never threaten. Start with a greeting that uses the client name. Mention the invoice number, amount and due date exactly as given. No placeholders, no signature. Max 350 characters. Reply as JSON {"note": string}.' },
+        { role: 'user', content: `Language: ${idioma}. Client: ${factura.cliente}. Invoice #${factura.numero} for ${factura.monto.toFixed(2)} ${factura.moneda} (${factura.concepto}). Status: ${estado}. Reminders already sent: ${factura.recordatorios || 0}.` },
       ],
-      response_format: { type: 'json_schema', json_schema: { type: 'object', properties: { subject: { type: 'string' }, note: { type: 'string' } }, required: ['subject', 'note'] } },
-      max_tokens: 300,
+      response_format: { type: 'json_schema', json_schema: { type: 'object', properties: { note: { type: 'string' } }, required: ['note'] } },
+      max_tokens: 250,
       temperature: 0.4,
     });
     const j = typeof r?.response === 'string' ? JSON.parse(r.response) : r?.response;
-    if (!j?.subject || !j?.note) throw new Error('vacío');
-    return { subject: String(j.subject).slice(0, 120), note: String(j.note).slice(0, 600) };
+    const note = String(j?.note || '').trim();
+    if (!note || !note.toLowerCase().includes(String(factura.cliente).toLowerCase()) || (!factura.vencida && ATRASO.test(note))) return base;
+    return { subject: base.subject, note: note.slice(0, 600) };
   } catch {
     return base;
   }
