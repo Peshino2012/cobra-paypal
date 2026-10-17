@@ -98,11 +98,16 @@ const ACCIONES = {
     await ultimoAsistente().getByRole('button', { name: 'QR' }).click();
     await esperar(3500);
     await page.getByRole('button', { name: 'Close' }).click();
+    // La página de PayPal se abre acá y la escena siguiente arranca recién cuando la factura ya se ve
+    // (si no, la narración "this is the real invoice" cae sobre la pantalla de carga).
+    if (!datos.urlPago) return;
+    await esperar(800);
+    await page.goto(datos.urlPago, { timeout: 30000 }).catch(() => {});
+    await page.getByText(/1,200\.00/).first().waitFor({ timeout: 30000 }).catch(() => {});
+    await page.getByRole('button', { name: /accept/i }).first().click({ timeout: 3000 }).catch(() => {});
   },
   async paypal() {
     if (!datos.urlPago) return;
-    await page.goto(datos.urlPago, { timeout: 30000 }).catch(() => {});
-    await page.getByRole('button', { name: /accept/i }).first().click({ timeout: 4000 }).catch(() => {});
     await rotulo().catch(() => {});
     await esperar(3000);
   },
