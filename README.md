@@ -70,7 +70,7 @@ flowchart LR
 
 ## Try it
 
-**Hosted demo:** the deploy workflow prints the URL. Everything runs against the **PayPal sandbox**.
+**Hosted demo: https://cobra.peshino2012.workers.dev** (no sign-up: each browser gets its own workspace). Everything runs against the **PayPal sandbox**.
 
 To pay an invoice as the client:
 1. Open its payment link.
