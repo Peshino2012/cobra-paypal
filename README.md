@@ -4,6 +4,8 @@
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) · PayPal Invoicing v2 + Webhooks (sandbox) · Cloudflare Workers AI (Llama 3.3 70B, Whisper) · Cloudflare Workers + D1.
 
+▶️ **Demo video (2:30): https://youtu.be/wBQHYIgT1IA** · 🌐 **Live demo: https://cobra.peshino2012.workers.dev**
+
 | Chat → draft → invoice | Reminders, payments and dashboard | Mobile |
 |---|---|---|
 | ![Draft](capturas/1-borrador.png) | ![Dashboard](capturas/3-tablero.png) | ![Mobile](capturas/4-celular.png) |
