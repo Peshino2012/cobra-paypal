@@ -157,6 +157,9 @@ dialog h2 { margin: 0 0 12px; font-size: 18px; }
   .sandbox { display: none; }
 }
 @media (max-width: 480px) {
+  .marca small { display: none; }
+  .top-acciones { gap: 4px; }
+  .top-acciones .btn { padding-left: 10px; padding-right: 10px; }
   .kpis { grid-template-columns: 1fr 1fr; }
   .kpis .kpi:first-child { grid-column: 1 / -1; }
   .campos { grid-template-columns: 1fr; }
