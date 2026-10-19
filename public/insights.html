@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cobra Insights — who owes you, at a glance</title>
+  <meta name="theme-color" content="#0b3b2e">
+  <link rel="icon" href="/icono.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/estilos.css">
+  <link rel="stylesheet" href="/insights.css">
+  <script src="https://cdn.jsdelivr.net/npm/ag-studio@3.0.0/dist/umd/ag-studio.min.js" integrity="sha384-7PJhP4EokYImcTjoBC8tU70g15uKpbbnOmciR0SmXBL5r5EBAqIVCo748JuYDB5n" crossorigin="anonymous" defer></script>
+  <script type="module" src="/insights.js"></script>
+</head>
+<body class="insights">
+  <header class="top">
+    <a class="marca" href="/">
+      <img src="/icono.svg" alt="" width="36" height="36">
+      <div><strong>Cobra</strong><small>Insights</small></div>
+    </a>
+    <div class="top-acciones">
+      <span class="sandbox">PayPal sandbox</span>
+      <div class="fuente" role="group" aria-label="Data">
+        <button id="btn-mios" class="btn btn-sutil btn-chico" type="button" aria-pressed="true">My invoices</button>
+        <button id="btn-ejemplo" class="btn btn-sutil btn-chico" type="button" aria-pressed="false">Sample data</button>
+      </div>
+      <a class="btn btn-sutil" href="/">Back to chat</a>
+    </div>
+  </header>
+  <p id="aviso" class="aviso-insights" hidden></p>
+  <main id="studio" class="studio"></main>
+</body>
+</html>

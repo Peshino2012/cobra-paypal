@@ -1,0 +1,41 @@
+name: insights-ia
+
+# Prueba Cobra Insights (AG Studio) con el modelo real de Workers AI, sobre los datos de ejemplo.
+# Solo a mano: cada corrida gasta cuota diaria de Workers AI. Deja capturas y turnos en la rama insights-prueba.
+on:
+  workflow_dispatch:
+    inputs:
+      pedidos:
+        description: Pedidos al asistente, separados por "|"
+        default: Add a bar chart with the outstanding amount by client
+
+permissions:
+  contents: write
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PEDIDOS: ${{ inputs.pedidos }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Asistente con el modelo real
+        run: |
+          IFS='|' read -ra P <<< "$PEDIDOS"
+          node e2e/insights-ia.mjs "${P[@]}"
+      - name: Guardar en la rama insights-prueba
+        if: always()
+        run: |
+          cd e2e/out-insights
+          git init -q -b insights-prueba
+          git add .
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q -m "Prueba de Insights (${GITHUB_SHA::7})"
+          git push -f -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" insights-prueba

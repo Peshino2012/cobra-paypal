@@ -6,6 +6,7 @@ import { crearPaypal, enlacePago, ErrorPaypal } from './paypal.js';
 import { totales, enPesos, medidorMonotributo, vencida, ESTADOS_ABIERTA, ESTADOS_PAGADA, MONOTRIBUTO_2026_08 } from './finanzas.js';
 import { obtenerCotizaciones } from './cotizacion.js';
 import { firmarValor, leerValorFirmado, aBase64url } from './seguridad.js';
+import { turnoStudio, ErrorStudio } from './studio.js';
 
 const COOKIE = 'cobra_espacio';
 const UN_ANIO = 365 * 24 * 3600;
@@ -403,6 +404,18 @@ async function enrutar(request, env) {
   }
 
   if (metodo === 'POST' && ruta === '/api/facturas') return con(await crearYEnviar(env, espacio, await request.json().catch(() => ({}))));
+
+  // Un turno de los agentes de Cobra Insights (AG Studio).
+  if (metodo === 'POST' && ruta === '/api/insights/llm') {
+    const crudo = await request.text();
+    try {
+      return con(json(await turnoStudio(env, espacio, JSON.parse(crudo || 'null'), crudo.length)));
+    } catch (e) {
+      if (e instanceof SyntaxError) return con(json({ error: { code: 'bad_request', message: 'Invalid JSON' } }, 400));
+      if (e instanceof ErrorStudio) return con(json({ error: { code: e.codigo, message: e.message } }, e.status));
+      throw e;
+    }
+  }
 
   const acc = ruta.match(/^\/api\/facturas\/([A-Za-z0-9-]+)\/(recordar|cancelar|pagada)$/);
   if (metodo === 'POST' && acc) return con(await accionFactura(env, espacio, acc[1], acc[2], await request.json().catch(() => ({}))));

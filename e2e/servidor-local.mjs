@@ -24,6 +24,20 @@ if (process.env.IA_FALSA) {
       throw new Error('sin LLM en local');
     },
   };
+} else if (process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID) {
+  // Workers AI real por la API REST de Cloudflare (solo pedidos JSON; se usa en CI para probar Cobra Insights).
+  env.AI = {
+    async run(modelo, cuerpo) {
+      const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/run/${modelo}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(cuerpo),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.success === false) throw new Error(`Workers AI ${r.status}: ${JSON.stringify(j.errors || j).slice(0, 500)}`);
+      return j.result;
+    },
+  };
 }
 
 const fetchReal = globalThis.fetch;
@@ -34,10 +48,23 @@ globalThis.fetch = async (url, opts) => {
   return fetchReal(url, opts);
 };
 
-const cabeceras = {};
-for (const linea of (await readFile(join(RAIZ, '_headers'), 'utf8')).split('\n').slice(1)) {
+// public/_headers como en Cloudflare: bloques por ruta (con * al final), y "! Nombre" saca una cabecera de un bloque anterior.
+const reglas = [];
+for (const linea of (await readFile(join(RAIZ, '_headers'), 'utf8')).split('\n')) {
+  if (/^\S/.test(linea)) reglas.push({ patron: linea.trim(), poner: [], sacar: [] });
   const m = linea.trim().match(/^([\w-]+):\s*(.+)$/);
-  if (m) cabeceras[m[1]] = m[2];
+  if (m) reglas.at(-1).poner.push([m[1], m[2]]);
+  const s = linea.trim().match(/^!\s*([\w-]+)$/);
+  if (s) reglas.at(-1).sacar.push(s[1]);
+}
+function cabecerasDe(ruta) {
+  const h = {};
+  for (const r of reglas) {
+    if (!(r.patron.endsWith('*') ? ruta.startsWith(r.patron.slice(0, -1)) : ruta === r.patron)) continue;
+    for (const n of r.sacar) delete h[n];
+    for (const [n, v] of r.poner) h[n] = v;
+  }
+  return h;
 }
 
 createServer(async (req, res) => {
@@ -59,9 +86,11 @@ createServer(async (req, res) => {
   if (ruta.endsWith('/')) ruta += 'index.html';
   const archivo = normalize(join(RAIZ, ruta));
   if (!archivo.startsWith(RAIZ)) return res.writeHead(403).end();
+  let contenido;
   try {
-    res.writeHead(200, { 'Content-Type': TIPOS[extname(archivo)] || 'application/octet-stream', ...cabeceras }).end(await readFile(archivo));
+    contenido = await readFile(archivo);
   } catch {
-    res.writeHead(404).end('no encontrado');
+    return res.writeHead(404).end('no encontrado');
   }
+  res.writeHead(200, { 'Content-Type': TIPOS[extname(archivo)] || 'application/octet-stream', ...cabecerasDe(ruta) }).end(contenido);
 }).listen(PUERTO, '127.0.0.1', () => console.log(`Cobra local en http://127.0.0.1:${PUERTO}`));
