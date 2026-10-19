@@ -35,11 +35,11 @@ for (const [i, texto] of PEDIDOS.entries()) {
     const ultimo = [...window.__sesion.messages].reverse().find((m) => m.role === 'assistant');
     return {
       estado: window.__sesion.status,
-      turnos: turnos.map((t) => ({ estado: t.respuesta.status, error: t.respuesta.error, usage: t.respuesta.usage, salida: t.respuesta.output.map((o) => (o.type === 'function_call' ? `→ ${o.name}(${o.arguments.slice(0, 160)})` : o.type === 'message' ? `💬 ${o.content.map((c) => c.text).join('').slice(0, 300)}` : `… ${o.type}`)) })),
+      turnos: turnos.map((t) => ({ estado: t.respuesta.status, error: t.respuesta.error, usage: t.respuesta.usage, neuronas: t.respuesta.neurons, salida: t.respuesta.output.map((o) => (o.type === 'function_call' ? `→ ${o.name}(${o.arguments.slice(0, 160)})` : o.type === 'message' ? `💬 ${o.content.map((c) => c.text).join('').slice(0, 300)}` : `… ${o.type}`)) })),
       respuesta: ultimo ? JSON.stringify(ultimo).slice(0, 1500) : null,
     };
   }, desde);
-  const tokens = r.turnos.reduce((a, t) => ({ entrada: a.entrada + (t.usage?.inputTokens || 0), salida: a.salida + (t.usage?.outputTokens || 0) }), { entrada: 0, salida: 0 });
+  const tokens = r.turnos.reduce((a, t) => ({ entrada: a.entrada + (t.usage?.inputTokens || 0), salida: a.salida + (t.usage?.outputTokens || 0), neuronas: a.neuronas + (t.neuronas || 0) }), { entrada: 0, salida: 0, neuronas: 0 });
   resultados.push({ pedido: texto, segundos: Math.round((Date.now() - t0) / 1000), tokens, ...r });
   console.log(JSON.stringify(resultados.at(-1), null, 2));
   await page.screenshot({ path: `${OUT}${i + 1}-pedido.png` });

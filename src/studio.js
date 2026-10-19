@@ -1,6 +1,6 @@
 // Puente entre los agentes de AG Studio (Cobra Insights) y Workers AI.
 // AG Studio arma cada turno (conversación, instrucciones y herramientas) en el navegador y lo manda acá;
-// el Worker lo pasa al modelo en formato Responses de OpenAI (gpt-oss en Workers AI) y devuelve la salida
+// el Worker lo pasa al modelo como un chat con herramientas (gpt-oss en Workers AI) y devuelve la salida
 // en el formato de AG Studio. Las herramientas las ejecuta Studio en el navegador.
 
 export const MODELO_STUDIO = '@cf/openai/gpt-oss-120b';
@@ -22,71 +22,75 @@ const texto = (partes = []) =>
     .filter(Boolean)
     .join('\n');
 
-/** AgLlmRequest de AG Studio → cuerpo de la API Responses. */
-export function aRespuestas(pedido, { modelo = MODELO_STUDIO } = {}) {
-  const input = [];
+/** AgLlmRequest de AG Studio → pedido de chat con herramientas (el formato que acepta gpt-oss en Workers AI). */
+export function aChat(pedido) {
+  const messages = [];
+  if (pedido.instructions) messages.push({ role: 'system', content: pedido.instructions });
   for (const it of pedido.input || []) {
+    const ultimo = messages.at(-1);
     if (it.type === 'message' && (it.role === 'user' || it.role === 'system')) {
-      input.push({ type: 'message', role: it.role, content: [{ type: 'input_text', text: texto(it.content) }] });
+      messages.push({ role: it.role, content: texto(it.content) });
     } else if (it.type === 'message' && it.role === 'assistant') {
       const t = texto(it.content);
-      if (t) input.push({ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: t }] });
+      if (t) messages.push({ role: 'assistant', content: t });
     } else if (it.type === 'function_call') {
-      input.push({ type: 'function_call', call_id: it.callId, name: it.name, arguments: it.arguments || '{}' });
+      const llamada = { id: it.callId, type: 'function', function: { name: it.name, arguments: it.arguments || '{}' } };
+      // Las llamadas seguidas (y el texto que las precede en el mismo turno) van en un solo mensaje del asistente.
+      if (ultimo?.role === 'assistant') (ultimo.tool_calls ||= []).push(llamada);
+      else messages.push({ role: 'assistant', content: null, tool_calls: [llamada] });
     } else if (it.type === 'function_call_output') {
-      input.push({ type: 'function_call_output', call_id: it.callId, output: typeof it.output === 'string' ? it.output : JSON.stringify(it.output) });
+      messages.push({ role: 'tool', tool_call_id: it.callId, content: typeof it.output === 'string' ? it.output : JSON.stringify(it.output) });
     }
     // Los razonamientos de turnos anteriores no se reenvían.
   }
-  const cuerpo = { model: modelo, input, reasoning: { effort: 'low' } };
-  if (pedido.instructions) cuerpo.instructions = pedido.instructions;
+  const cuerpo = { messages, reasoning_effort: 'low' };
   const tools = (pedido.tools || []).filter((t) => (t.kind || 'client') !== 'provided');
   if (tools.length) {
-    cuerpo.tools = tools.map((t) => ({ type: 'function', name: t.name, description: t.description || '', parameters: t.parameters || { type: 'object', properties: {} } }));
+    cuerpo.tools = tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description || '', parameters: t.parameters || { type: 'object', properties: {} } } }));
     const tc = pedido.toolChoice;
-    if (tc && typeof tc === 'object') cuerpo.tool_choice = { type: 'function', name: tc.name };
+    if (tc && typeof tc === 'object') cuerpo.tool_choice = { type: 'function', function: { name: tc.name } };
     else if (tc) cuerpo.tool_choice = tc;
   }
   if (pedido.responseFormat?.type === 'json') {
-    cuerpo.text = { format: { type: 'json_schema', name: pedido.responseFormat.name || 'respuesta', schema: pedido.responseFormat.schema, strict: false } };
+    cuerpo.response_format = { type: 'json_schema', json_schema: { name: pedido.responseFormat.name || 'respuesta', schema: pedido.responseFormat.schema, strict: false } };
   }
   return cuerpo;
 }
 
-/** Respuesta de la API Responses (o de chat completions, por las dudas) → AgLlmResponse de AG Studio. */
-export function deRespuestas(r, ahora = Date.now()) {
+/** Respuesta de chat (o de la API Responses) → AgLlmResponse de AG Studio. */
+export function deChat(r, ahora = Date.now()) {
   let n = 0;
   const id = (prefijo) => `${prefijo}_${ahora.toString(36)}_${n++}`;
   const output = [];
+  const msj = r?.choices?.[0]?.message;
+  if (msj) {
+    const razonamiento = msj.reasoning_content || msj.reasoning;
+    if (razonamiento) output.push({ id: id('rs'), kind: 'output', type: 'reasoning', summary: [], content: [{ type: 'text', text: razonamiento }] });
+    if (msj.content) output.push({ id: id('msg'), kind: 'output', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'text', text: msj.content, annotations: [] }] });
+    for (const tc of msj.tool_calls || []) {
+      output.push({ id: id('fc'), kind: 'output', type: 'function_call', callId: tc.id || id('call'), name: tc.function?.name, arguments: tc.function?.arguments || '{}', status: 'completed' });
+    }
+  }
   for (const it of r?.output || []) {
     if (it.type === 'message') {
       const t = texto(it.content);
       if (t) output.push({ id: it.id || id('msg'), kind: 'output', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'text', text: t, annotations: [] }] });
     } else if (it.type === 'function_call') {
       output.push({ id: it.id || id('fc'), kind: 'output', type: 'function_call', callId: it.call_id || it.id || id('call'), name: it.name, arguments: it.arguments || '{}', status: 'completed' });
-    } else if (it.type === 'reasoning') {
-      const t = texto(it.content) || texto(it.summary);
-      if (t) output.push({ id: it.id || id('rs'), kind: 'output', type: 'reasoning', summary: [], content: [{ type: 'text', text: t }] });
-    }
-  }
-  // Formato de chat completions (algunos modelos de Workers AI responden así).
-  const msj = r?.choices?.[0]?.message;
-  if (!output.length && msj) {
-    if (msj.content) output.push({ id: id('msg'), kind: 'output', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'text', text: msj.content, annotations: [] }] });
-    for (const tc of msj.tool_calls || []) {
-      output.push({ id: id('fc'), kind: 'output', type: 'function_call', callId: tc.id || id('call'), name: tc.function?.name, arguments: tc.function?.arguments || '{}', status: 'completed' });
     }
   }
   const u = r?.usage || {};
-  const entrada = u.input_tokens ?? u.prompt_tokens;
-  const salida = u.output_tokens ?? u.completion_tokens;
+  const entrada = u.prompt_tokens ?? u.input_tokens;
+  const salida = u.completion_tokens ?? u.output_tokens;
+  const util = output.some((o) => o.type !== 'reasoning');
   return {
     id: r?.id || id('resp'),
     createdAt: ahora,
-    status: output.length ? 'completed' : 'failed',
-    ...(output.length ? {} : { error: { code: 'empty', message: 'The model returned no output' } }),
+    status: util ? 'completed' : 'failed',
+    ...(util ? {} : { error: { code: 'empty', message: 'The model returned no answer. Try again.' } }),
     output,
     ...(entrada != null ? { usage: { inputTokens: entrada, outputTokens: salida ?? 0, totalTokens: (entrada || 0) + (salida || 0) } } : {}),
+    ...(u.neurons != null ? { neurons: u.neurons } : {}),
     model: MODELO_STUDIO,
   };
 }
@@ -123,7 +127,7 @@ export async function turnoStudio(env, espacio, pedido, bytes) {
   const modelo = env.STUDIO_MODEL || MODELO_STUDIO;
   let r;
   try {
-    r = await env.AI.run(modelo, aRespuestas(pedido, { modelo }));
+    r = await env.AI.run(modelo, aChat(pedido));
   } catch (e) {
     console.error('studio', e);
     const cuota = /4006|daily free allocation|neurons/i.test(String(e?.message || e));
@@ -131,5 +135,5 @@ export async function turnoStudio(env, espacio, pedido, bytes) {
     if (env.STUDIO_DEBUG) error.detalle = String(e?.message || e).slice(0, 6000);
     throw error;
   }
-  return { ...deRespuestas(r), model: modelo };
+  return { ...deChat(r), model: modelo };
 }

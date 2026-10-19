@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../src/index.js';
-import { aRespuestas, deRespuestas, contarTurno, MAX_TURNOS_HORA, MODELO_STUDIO } from '../src/studio.js';
+import { aChat, deChat, contarTurno, MAX_TURNOS_HORA, MODELO_STUDIO } from '../src/studio.js';
 import { crearD1 } from './d1-falsa.js';
 
 const pedido = {
@@ -22,52 +22,63 @@ const pedido = {
   responseFormat: { type: 'text' },
 };
 
-test('el pedido de AG Studio se traduce al formato Responses', () => {
-  const b = aRespuestas(pedido);
-  assert.equal(b.model, MODELO_STUDIO);
-  assert.equal(b.instructions, 'You are the Orchestrator.');
-  assert.deepEqual(b.input, [
-    { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Who owes me the most?' }] },
-    { type: 'function_call', call_id: 'call_1', name: 'view_schema', arguments: '{}' },
-    { type: 'function_call_output', call_id: 'call_1', output: '{"tables":["invoices"]}' },
-    { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Looking…' }] },
+test('el pedido de AG Studio se traduce a un chat con herramientas', () => {
+  const b = aChat(pedido);
+  assert.deepEqual(b.messages, [
+    { role: 'system', content: 'You are the Orchestrator.' },
+    { role: 'user', content: 'Who owes me the most?' },
+    { role: 'assistant', content: null, tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'view_schema', arguments: '{}' } }] },
+    { role: 'tool', tool_call_id: 'call_1', content: '{"tables":["invoices"]}' },
+    { role: 'assistant', content: 'Looking…' },
   ]);
-  assert.deepEqual(b.tools, [{ type: 'function', name: 'view_schema', description: 'See the tables', parameters: { type: 'object', properties: {} } }], 'sin las herramientas del proveedor');
-  assert.deepEqual(b.tool_choice, { type: 'function', name: 'view_schema' });
-  assert.equal(b.text, undefined);
+  assert.deepEqual(b.tools, [{ type: 'function', function: { name: 'view_schema', description: 'See the tables', parameters: { type: 'object', properties: {} } } }], 'sin las herramientas del proveedor');
+  assert.deepEqual(b.tool_choice, { type: 'function', function: { name: 'view_schema' } });
+  assert.equal(b.response_format, undefined);
 
-  const j = aRespuestas({ ...pedido, toolChoice: 'auto', responseFormat: { type: 'json', name: 'plan', schema: { type: 'object' } } });
+  // Texto y llamadas del mismo turno van en un solo mensaje del asistente.
+  const juntos = aChat({
+    input: [
+      { type: 'message', role: 'user', content: [{ type: 'text', text: 'hola' }] },
+      { type: 'message', role: 'assistant', content: [{ type: 'text', text: 'Voy' }] },
+      { type: 'function_call', callId: 'a', name: 'view_page', arguments: '{}' },
+      { type: 'function_call', callId: 'b', name: 'view_report', arguments: '{}' },
+    ],
+  });
+  assert.equal(juntos.messages.length, 2);
+  assert.equal(juntos.messages[1].content, 'Voy');
+  assert.deepEqual(juntos.messages[1].tool_calls.map((t) => t.id), ['a', 'b']);
+
+  const j = aChat({ ...pedido, toolChoice: 'auto', responseFormat: { type: 'json', name: 'plan', schema: { type: 'object' } } });
   assert.equal(j.tool_choice, 'auto');
-  assert.deepEqual(j.text, { format: { type: 'json_schema', name: 'plan', schema: { type: 'object' }, strict: false } });
+  assert.deepEqual(j.response_format, { type: 'json_schema', json_schema: { name: 'plan', schema: { type: 'object' }, strict: false } });
 });
 
 test('la respuesta del modelo vuelve en el formato de AG Studio', () => {
-  const r = deRespuestas(
+  const r = deChat(
     {
-      id: 'resp_1',
-      output: [
-        { type: 'reasoning', id: 'rs_1', content: [{ type: 'reasoning_text', text: 'Necesito el esquema' }] },
-        { type: 'function_call', id: 'fc_1', call_id: 'call_9', name: 'view_schema', arguments: '{}' },
-        { type: 'message', id: 'msg_1', content: [{ type: 'output_text', text: 'Northwind Labs owes the most.' }] },
-      ],
-      usage: { input_tokens: 4000, output_tokens: 120 },
+      id: 'chatcmpl-1',
+      choices: [{ message: { role: 'assistant', content: 'Northwind Labs owes the most.', reasoning_content: 'Necesito el esquema', tool_calls: [{ id: 'call_9', type: 'function', function: { name: 'view_schema', arguments: '{}' } }] } }],
+      usage: { prompt_tokens: 4000, completion_tokens: 120, neurons: 170.5 },
     },
     1000,
   );
   assert.equal(r.status, 'completed');
   assert.deepEqual(r.usage, { inputTokens: 4000, outputTokens: 120, totalTokens: 4120 });
-  assert.deepEqual(r.output, [
-    { id: 'rs_1', kind: 'output', type: 'reasoning', summary: [], content: [{ type: 'text', text: 'Necesito el esquema' }] },
-    { id: 'fc_1', kind: 'output', type: 'function_call', callId: 'call_9', name: 'view_schema', arguments: '{}', status: 'completed' },
-    { id: 'msg_1', kind: 'output', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'text', text: 'Northwind Labs owes the most.', annotations: [] }] },
-  ]);
+  assert.equal(r.neurons, 170.5);
+  assert.deepEqual(
+    r.output.map((o) => [o.type, o.type === 'function_call' ? `${o.callId}:${o.name}` : (o.content[0].text)]),
+    [
+      ['reasoning', 'Necesito el esquema'],
+      ['message', 'Northwind Labs owes the most.'],
+      ['function_call', 'call_9:view_schema'],
+    ],
+  );
 
-  const chat = deRespuestas({ choices: [{ message: { content: null, tool_calls: [{ id: 'c1', function: { name: 'view_page', arguments: '{"pageId":"p1"}' } }] } }] });
-  assert.equal(chat.output[0].type, 'function_call');
-  assert.equal(chat.output[0].name, 'view_page');
+  const responses = deChat({ output: [{ type: 'function_call', call_id: 'c1', name: 'view_page', arguments: '{"pageId":"p1"}' }] });
+  assert.equal(responses.output[0].name, 'view_page');
 
-  const vacia = deRespuestas({ output: [] });
-  assert.equal(vacia.status, 'failed');
+  const soloRazona = deChat({ choices: [{ message: { content: null, reasoning_content: 'mmm' } }] });
+  assert.equal(soloRazona.status, 'failed', 'pensar sin responder no sirve');
 });
 
 test('límite de turnos por espacio y por hora', async () => {
@@ -88,7 +99,7 @@ test('la ruta /api/insights/llm llama al modelo y valida el pedido', async () =>
     AI: {
       async run(modelo, cuerpo) {
         llamadas.push({ modelo, cuerpo });
-        return { output: [{ type: 'message', content: [{ type: 'output_text', text: 'Hola' }] }], usage: { input_tokens: 10, output_tokens: 2 } };
+        return { choices: [{ message: { role: 'assistant', content: 'Hola' } }], usage: { prompt_tokens: 10, completion_tokens: 2 } };
       },
     },
   };
@@ -99,7 +110,7 @@ test('la ruta /api/insights/llm llama al modelo y valida el pedido', async () =>
   const datos = await ok.json();
   assert.equal(datos.output[0].content[0].text, 'Hola');
   assert.equal(llamadas[0].modelo, MODELO_STUDIO);
-  assert.equal(llamadas[0].cuerpo.input.length, 4);
+  assert.equal(llamadas[0].cuerpo.messages.length, 5);
 
   assert.equal((await pedir(JSON.stringify(pedido), {})).status, 403, 'sin el encabezado anti-CSRF');
   assert.equal((await pedir('{no es json')).status, 400);
