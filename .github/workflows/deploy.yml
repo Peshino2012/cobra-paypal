@@ -90,6 +90,6 @@ jobs:
           jq '{idioma: .espacio.idioma, dolar: .dolar, facturas: (.facturas | length)}' estado.json
           probar "$URL/insights.html" > /dev/null
           LIC=$(curl -fsS -H 'X-Cobra: 1' "$URL/api/insights/config" | jq -r 'if .licencia then "cargada" else "falta" end')
-          echo "Licencia de AG Studio: $LIC"
+          echo "::notice title=AG Studio::Licencia de AG Studio: $LIC"
           echo "Licencia de AG Studio: $LIC" >> "$GITHUB_STEP_SUMMARY"
           echo "### Cobra publicada en $URL" >> "$GITHUB_STEP_SUMMARY"

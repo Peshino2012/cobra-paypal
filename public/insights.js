@@ -2,8 +2,9 @@
 import { facturasEjemplo } from './insights-ejemplo.js';
 import { REPORTE } from './insights-reporte.js';
 import { crearHarness, VISTA_HERRAMIENTAS } from './insights-agente.js';
+import { MARCADOR, TIPO_MARCADOR } from './insights-marcador.js';
 
-const { createStudio, AgStudioLicenseManager, AgStudioModuleRegistry, AgStudioAiModule, studioTheme } = window.agStudio;
+const { createStudio, createWidgets, AgStudioLicenseManager, AgStudioModuleRegistry, AgStudioAiModule, studioTheme } = window.agStudio;
 AgStudioModuleRegistry.registerModules([AgStudioAiModule]);
 
 // Colores de Cobra: verde para lo cobrado o a tiempo, rojo para lo vencido, gris y ámbar para el resto.
@@ -162,6 +163,7 @@ async function iniciar() {
     initialState: params.has('vacio') ? undefined : REPORTE,
     layout: { columns: 12, rowHeight: 40 },
     theme: TEMA,
+    widgets: (config) => createWidgets({ additionalTypes: [MARCADOR], menu: [{ label: 'Cobra', widgetIds: [TIPO_MARCADOR] }, ...config.menu] }),
     panels: { edit: { left: ['ai'], right: ['filters', 'edit', 'data'] } },
     data: {
       description: 'Invoices a freelancer sent with PayPal, one row per invoice.',

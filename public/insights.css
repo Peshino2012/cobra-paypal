@@ -12,3 +12,16 @@ body.insights .top a.marca { color: inherit; text-decoration: none; }
 .cobra-enviar { justify-self: start; padding: 7px 14px; border: 0; border-radius: 999px; background: #0070ba; color: #fff; font-weight: 700; cursor: pointer; }
 .cobra-enviar:disabled { opacity: .55; cursor: default; }
 .cobra-borrador-estado { margin: 0; color: var(--suave); }
+/* Widget propio: Collections scoreboard */
+.cobra-marcador { height: 100%; overflow: auto; display: grid; align-content: start; gap: 6px; padding: 4px 2px; font: 13px/1.3 var(--fuente); color: #13201a; }
+.cobra-marcador-fila { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; grid-template-areas: "puesto nombre monto" "puesto barra chip"; column-gap: 10px; row-gap: 4px; align-items: center; padding: 8px 10px; border-radius: 12px; background: #f4f8f5; }
+.cobra-marcador-fila:first-child { background: #fff3f2; }
+.cobra-marcador-puesto { grid-area: puesto; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #0b3b2e; color: #fff; font-weight: 800; font-size: 12px; }
+.cobra-marcador-nombre { grid-area: nombre; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cobra-marcador-monto { grid-area: monto; font-size: 15px; font-variant-numeric: tabular-nums; }
+.cobra-marcador-barra { grid-area: barra; height: 8px; border-radius: 999px; background: linear-gradient(90deg, var(--color) var(--ancho), #e3e9e5 var(--ancho)); --color: #1f9d6b; }
+.cobra-marcador-barra.poco { --color: #f2a541; }
+.cobra-marcador-barra.mucho { --color: #e5484d; }
+.cobra-marcador-chip { grid-area: chip; justify-self: end; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #e2f3ea; color: #128a5a; white-space: nowrap; }
+.cobra-marcador-chip.poco { background: #fdf3dc; color: #9a5b00; }
+.cobra-marcador-chip.mucho { background: #fdecea; color: #b42318; }

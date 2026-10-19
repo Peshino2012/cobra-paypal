@@ -156,17 +156,26 @@ export const REPORTE = {
           "format": {
             "title": {
               "enabled": true,
-              "text": "Late payers"
+              "text": "Overdue invoices"
             }
           },
           "dataMapping": {
             "cols": [
               {
+                "id": "invoices.invoice"
+              },
+              {
                 "id": "invoices.client"
+              },
+              {
+                "id": "invoices.description"
               },
               {
                 "id": "invoices.overdue_amount",
                 "aggregation": "sum"
+              },
+              {
+                "id": "invoices.due::day"
               },
               {
                 "id": "invoices.days_overdue",
@@ -181,12 +190,40 @@ export const REPORTE = {
           "sort": [
             {
               "field": {
-                "id": "invoices.overdue_amount",
-                "aggregation": "sum"
+                "id": "invoices.days_overdue",
+                "aggregation": "max"
               },
               "direction": "desc"
             }
           ]
+        },
+        "marcador": {
+          "type": "cobra-scoreboard",
+          "format": {
+            "title": {
+              "enabled": true,
+              "text": "Collections scoreboard"
+            }
+          },
+          "dataMapping": {
+            "client": [
+              {
+                "id": "invoices.client"
+              }
+            ],
+            "owed": [
+              {
+                "id": "invoices.outstanding",
+                "aggregation": "sum"
+              }
+            ],
+            "days": [
+              {
+                "id": "invoices.days_overdue",
+                "aggregation": "max"
+              }
+            ]
+          }
         }
       },
       "widgetLayout": {
@@ -222,7 +259,7 @@ export const REPORTE = {
         },
         "estados": {
           "xTrack": 7,
-          "yTrack": 3,
+          "yTrack": 11,
           "xSpan": 5,
           "ySpan": 8
         },
@@ -233,8 +270,14 @@ export const REPORTE = {
           "ySpan": 8
         },
         "demoras": {
+          "xTrack": 0,
+          "yTrack": 19,
+          "xSpan": 12,
+          "ySpan": 7
+        },
+        "marcador": {
           "xTrack": 7,
-          "yTrack": 11,
+          "yTrack": 3,
           "xSpan": 5,
           "ySpan": 8
         }

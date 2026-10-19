@@ -21,14 +21,24 @@ const PIEZAS = [
       sort: [{ field: { id: 'invoices.outstanding', aggregation: 'sum' }, direction: 'desc' }],
     },
   ],
-  [W('estados', 'donut-chart', 7, 3, 5, 8), { format: titulo('Invoices by status'), dataMapping: { categoryKey: [{ id: 'invoices.status' }], valueKey: [{ id: 'invoices.amount', aggregation: 'sum' }] } }],
+  [W('estados', 'donut-chart', 7, 11, 5, 8), { format: titulo('Invoices by status'), dataMapping: { categoryKey: [{ id: 'invoices.status' }], valueKey: [{ id: 'invoices.amount', aggregation: 'sum' }] } }],
   [W('cobrado-mes', 'column-chart-grouped', 0, 11, 7, 8), { format: titulo('Collected per month'), dataMapping: { categoryKey: [{ id: 'invoices.paid_on::month' }], valueKey: [{ id: 'invoices.collected', aggregation: 'sum' }] } }],
   [
-    W('demoras', 'grid', 7, 11, 5, 8),
+    W('demoras', 'grid', 0, 19, 12, 7),
     {
-      format: titulo('Late payers'),
-      dataMapping: { cols: [{ id: 'invoices.client' }, { id: 'invoices.overdue_amount', aggregation: 'sum' }, { id: 'invoices.days_overdue', aggregation: 'max' }, { id: 'invoices.reminders_sent', aggregation: 'sum' }] },
-      sort: [{ field: { id: 'invoices.overdue_amount', aggregation: 'sum' }, direction: 'desc' }],
+      format: titulo('Overdue invoices'),
+      dataMapping: {
+        cols: [
+          { id: 'invoices.invoice' },
+          { id: 'invoices.client' },
+          { id: 'invoices.description' },
+          { id: 'invoices.overdue_amount', aggregation: 'sum' },
+          { id: 'invoices.due::day' },
+          { id: 'invoices.days_overdue', aggregation: 'max' },
+          { id: 'invoices.reminders_sent', aggregation: 'sum' },
+        ],
+      },
+      sort: [{ field: { id: 'invoices.days_overdue', aggregation: 'max' }, direction: 'desc' }],
     },
   ],
 ];
@@ -38,6 +48,17 @@ const FILTROS = [
   ['cobrado-mes', { field: { id: 'invoices.paid_on' }, model: { operator: 'isNotBlank' } }],
   ['demoras', { field: { id: 'invoices.overdue_amount' }, model: { operator: 'greaterThan', value: 0 } }],
 ];
+
+// El widget propio (Collections scoreboard) no tiene esquema de formato para la IA: va directo al estado.
+const MARCADOR = {
+  id: 'marcador',
+  layout: { xTrack: 7, yTrack: 3, xSpan: 5, ySpan: 8 },
+  estado: {
+    type: 'cobra-scoreboard',
+    format: { title: { enabled: true, text: 'Collections scoreboard' } },
+    dataMapping: { client: [{ id: 'invoices.client' }], owed: [{ id: 'invoices.outstanding', aggregation: 'sum' }], days: [{ id: 'invoices.days_overdue', aggregation: 'max' }] },
+  },
+};
 
 const navegador = await chromium.launch();
 const page = await navegador.newPage({ viewport: { width: 1600, height: 1000 } });
@@ -76,6 +97,9 @@ await page.screenshot({ path: new URL('./out-insights/reporte.png', import.meta.
 for (const l of resultado.log) console.log(l[1] ? 'ok ' : 'ERROR', l[0], (typeof l[2] === 'string' ? l[2] : JSON.stringify(l[2])).slice(0, 700));
 console.log(JSON.stringify(resultado.estado.pages[0].widgets).slice(0, 1500));
 if (errores.length) console.log(errores.join('\n'));
+const pagina = resultado.estado.pages[0];
+pagina.widgets[MARCADOR.id] = MARCADOR.estado;
+pagina.widgetLayout[MARCADOR.id] = MARCADOR.layout;
 // Al abrir, el tablero ocupa el lugar y el asistente de IA queda a la izquierda: los paneles de edición, cerrados.
 resultado.estado.panels = { filters: { collapsed: true }, edit: { collapsed: true }, data: { collapsed: true }, ai: { width: 360 } };
 const malos = resultado.log.filter((l) => !l[1]);

@@ -2,7 +2,7 @@
 
 **Tell Cobra who to bill, by text or voice note, in English, Spanish or Portuguese. It drafts the PayPal invoice, sends it once you confirm, chases late payers on its own and tracks what you earned in local currency, including Argentina's *monotributo* income cap.**
 
-Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) · PayPal Invoicing v2 + Webhooks (sandbox) · Cloudflare Workers AI (Llama 3.3 70B, Whisper) · Cloudflare Workers + D1.
+Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) · PayPal Invoicing v2 + Webhooks (sandbox) · Cloudflare Workers AI (Llama 3.3 70B, Whisper, gpt-oss-120b) · [AG Studio](https://www.ag-grid.com/studio/) dashboards with its Agent Framework · Cloudflare Workers + D1.
 
 ▶️ **Demo video (2:30): https://youtu.be/wBQHYIgT1IA** · 🌐 **Live demo: https://cobra.peshino2012.workers.dev**
 
@@ -29,6 +29,28 @@ Millions of freelancers in Latin America work for clients abroad and get paid th
    - income converted to pesos at the official and MEP rates;
    - a **monotributo meter** with the 2026 ARCA caps: how much of your category you used, when you would hit the cap at your current pace, and which category you will need.
 
+## Cobra Insights: who owes you, at a glance (AG Studio)
+
+**[/insights.html](https://cobra.peshino2012.workers.dev/insights.html)** is an [AG Studio](https://www.ag-grid.com/studio/) dashboard over your PayPal invoices, with an AI assistant that can both **chase payments** and **build the dashboard for you**.
+
+| Dashboard | Cobra agent inside AG Studio |
+|---|---|
+| ![Insights](capturas/5-insights.png) | ![Cobra agent](capturas/6-insights-agente.png) |
+
+- **A ready-made collections dashboard.** Outstanding, overdue, collected and average days to get paid; who owes you; collected per month; invoices by status; and an AG Grid table of overdue invoices. It is generated with AG Studio's own AI tools ([`e2e/armar-reporte.mjs`](e2e/armar-reporte.mjs)), so every widget is validated the same way the agents' changes are.
+- **A custom widget: the Collections scoreboard.** Who owes you, as a friendly scoreboard instead of a collections report: one row per client, the amount owed, a bar and a colour-coded "days late" label ([`public/insights-marcador.js`](public/insights-marcador.js)).
+- **A custom agent on the Studio Agent Framework.** Cobra is the front agent of the AI panel ([`public/insights-agente.js`](public/insights-agente.js)):
+  - `who_owes_me` reads the unpaid invoices by client;
+  - `draft_reminder` writes the reminder (the same AI writer as the chat) and shows it **inside the AI panel with a "Send via PayPal" button**: the agent never sends anything, the freelancer does, through PayPal Invoicing's `remind`;
+  - anything about the dashboard itself ("add a chart of overdue by client") is delegated with `delegate_to` to AG Studio's built-in agents (lead → page → widget), which place and configure real widgets.
+- **Your data or sample data.** New workspaces start with clearly labelled sample data; once you bill clients in the chat, "My invoices" shows yours.
+- **Cobra theme.** Green for collected, red for overdue, on AG Studio's Theming API.
+
+**How the AI runs:** AG Studio drives the agent loop in the browser through an `AgLlmAdapter` ([`public/insights.js`](public/insights.js)). Each turn goes to the Worker ([`src/studio.js`](src/studio.js)), which forwards it to **gpt-oss-120b on Workers AI** as a chat with tools and maps the answer back to AG Studio's format. Guardrails:
+- Repairs a common tool-call mistake: the model writing `type: "page"` where the schema wants `type: { id: "page" }`.
+- Caps every request at 30 steps and stops an agent that repeats the same call three times, to protect the free AI quota.
+- Limits turns per workspace per hour, and per day overall.
+
 ## How PayPal and AI are used
 
 | | What | Where |
@@ -37,6 +59,7 @@ Millions of freelancers in Latin America work for clients abroad and get paid th
 | **PayPal Webhooks** | Registers `INVOICING.INVOICE.*` events once and verifies every delivery with `verify-webhook-signature` before trusting it | [`src/index.js`](src/index.js) |
 | **LLM: Llama 3.3 70B on Workers AI** | Turns free text (ES/EN/PT, slang like "lucas") into one structured action with **JSON-schema-constrained output**: create, remind, cancel, mark paid or query. It also writes reminders in the client's language. | [`src/agente.js`](src/agente.js) |
 | **Speech: Whisper (large-v3-turbo) on Workers AI** | Voice notes, the way freelancers in LatAm actually communicate | [`src/agente.js`](src/agente.js) |
+| **AG Studio + gpt-oss-120b on Workers AI** | Insights dashboard with a custom scoreboard widget, a custom Cobra agent (Studio Agent Framework) and AG Studio's built-in agents that build widgets on request; reminders drafted there are sent with PayPal `remind` | [`public/insights*.js`](public/insights.js), [`src/studio.js`](src/studio.js) |
 
 ### Guardrails
 
@@ -98,7 +121,7 @@ npx wrangler dev
 ## Tests
 
 ```bash
-npm test                  # 19 tests: agent parsing, AI fallback, PayPal client, money and tax math, full Worker flows
+npm test                  # 29 tests: agent parsing, AI fallback, PayPal client, money and tax math, full Worker flows, Insights AI bridge
 node e2e/capturas.mjs     # end-to-end walkthrough in Chromium (draft → send → payment → reminder) + screenshots
 ```
 
@@ -110,7 +133,7 @@ The Worker tests drive the real request handlers against an in-memory D1 and a s
 - voice transcription;
 - CSRF.
 
-A separate workflow ([`paypal-sandbox.yml`](.github/workflows/paypal-sandbox.yml)) creates, reads and deletes a real draft in the PayPal sandbox every week.
+A separate workflow ([`paypal-sandbox.yml`](.github/workflows/paypal-sandbox.yml)) creates, reads and deletes a real draft in the PayPal sandbox every week. Another one ([`insights-ia.yml`](.github/workflows/insights-ia.yml)) runs the Insights assistant against the real model and saves screenshots, turns and token use.
 
 ## Roadmap
 
