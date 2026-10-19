@@ -385,6 +385,8 @@ async function enrutar(request, env) {
   };
 
   if (metodo === 'GET' && ruta === '/api/estado') return con(json(await estado(env, espacio)));
+  // Licencia de AG Studio para Cobra Insights (va en el navegador, como indica AG Grid).
+  if (metodo === 'GET' && ruta === '/api/insights/config') return con(json({ licencia: env.AG_STUDIO_LICENSE || null }));
 
   if (metodo === 'POST' && ruta === '/api/mensaje') {
     const { texto } = await request.json().catch(() => ({}));
@@ -404,6 +406,16 @@ async function enrutar(request, env) {
   }
 
   if (metodo === 'POST' && ruta === '/api/facturas') return con(await crearYEnviar(env, espacio, await request.json().catch(() => ({}))));
+
+  // Borrador de recordatorio para el agente de Cobra Insights (no se manda nada: eso lo hace el usuario con el botón).
+  if (metodo === 'POST' && ruta === '/api/insights/recordatorio') {
+    const { paypal_id: id } = await request.json().catch(() => ({}));
+    const f = id ? await env.DB.prepare('SELECT * FROM facturas WHERE paypal_id = ? AND espacio_id = ?').bind(String(id), espacio.id).first() : null;
+    if (!f) return con(json({ error: 'not found' }, 404));
+    if (!ESTADOS_ABIERTA.has(f.estado)) return con(json({ error: 'not_open', estado: f.estado }, 409));
+    const borrador = await redactarRecordatorio(env.AI, { ...f, vencida: vencida(f) }, f.idioma || espacio.idioma || 'en');
+    return con(json({ paypal_id: f.paypal_id, numero: f.numero, cliente: f.cliente, email: f.email, monto: f.monto, moneda: f.moneda, vencida: vencida(f), ...borrador }));
+  }
 
   // Un turno de los agentes de Cobra Insights (AG Studio).
   if (metodo === 'POST' && ruta === '/api/insights/llm') {

@@ -5,7 +5,7 @@ const $ = (id) => document.getElementById(id);
 
 const I18N = {
   en: {
-    tagline: 'Your AI collections agent', sandbox: 'PayPal sandbox', ajustes: 'Settings', enviar: 'Send', voz: 'Record a voice note',
+    tagline: 'Your AI collections agent', sandbox: 'PayPal sandbox', insights: 'Insights', ajustes: 'Settings', enviar: 'Send', voz: 'Record a voice note',
     placeholder: 'Invoice Acme Corp 800 USD for the logo, ap@acme.com', grabando: 'Recording… tap the mic again to send.',
     cobrado: 'Collected (12 months)', pendiente: 'Outstanding', vencido: 'Overdue', monotributo: 'Monotributo (Argentina)', dolarHoy: 'USD today', oficial: 'official',
     facturas: 'Invoices', sincronizar: 'Sync with PayPal', sinFacturas: 'No invoices yet. Ask Cobra to bill your first client.',
@@ -22,7 +22,7 @@ const I18N = {
     vencidaChip: 'Overdue', recordatorios: (n) => `${n} reminder${n === 1 ? '' : 's'}`, sinMicrofono: 'Microphone not available in this browser',
   },
   es: {
-    tagline: 'Tu agente de cobranzas con IA', sandbox: 'PayPal sandbox', ajustes: 'Ajustes', enviar: 'Enviar', voz: 'Grabar un audio',
+    tagline: 'Tu agente de cobranzas con IA', sandbox: 'PayPal sandbox', insights: 'Tablero', ajustes: 'Ajustes', enviar: 'Enviar', voz: 'Grabar un audio',
     placeholder: 'Facturale 800 dólares a Acme Corp por el logo, ap@acme.com', grabando: 'Grabando… tocá el micrófono otra vez para enviar.',
     cobrado: 'Cobrado (12 meses)', pendiente: 'Pendiente', vencido: 'Vencido', monotributo: 'Monotributo', dolarHoy: 'Dólar hoy', oficial: 'oficial',
     facturas: 'Facturas', sincronizar: 'Sincronizar con PayPal', sinFacturas: 'Todavía no hay facturas. Pedile a Cobra que le facture a tu primer cliente.',

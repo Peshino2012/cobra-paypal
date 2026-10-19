@@ -1,7 +1,7 @@
 name: deploy
 
 # Tests y deploy a Cloudflare Workers en cada push a main.
-# Secrets del repo: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET.
+# Secrets del repo: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET y AG_STUDIO_LICENSE (opcional).
 on:
   push:
     branches: [main]
@@ -69,11 +69,13 @@ jobs:
         env:
           PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
           PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+          AG_STUDIO_LICENSE: ${{ secrets.AG_STUDIO_LICENSE }}
         run: |
           set -euo pipefail
           EXISTENTES=$(npx wrangler secret list | jq -r '.[].name')
           node -e '
             const s = { PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET };
+            if (process.env.AG_STUDIO_LICENSE) s.AG_STUDIO_LICENSE = process.env.AG_STUDIO_LICENSE.trim();
             if (!process.argv[1].split("\n").includes("SESSION_SECRET")) s.SESSION_SECRET = require("crypto").randomBytes(32).toString("base64url");
             require("fs").writeFileSync("secretos.json", JSON.stringify(s));
           ' "$EXISTENTES"
@@ -86,4 +88,8 @@ jobs:
           probar "$URL/api/salud"
           probar -H 'X-Cobra: 1' "$URL/api/estado" > estado.json
           jq '{idioma: .espacio.idioma, dolar: .dolar, facturas: (.facturas | length)}' estado.json
+          probar "$URL/insights.html" > /dev/null
+          LIC=$(curl -fsS -H 'X-Cobra: 1' "$URL/api/insights/config" | jq -r 'if .licencia then "cargada" else "falta" end')
+          echo "Licencia de AG Studio: $LIC"
+          echo "Licencia de AG Studio: $LIC" >> "$GITHUB_STEP_SUMMARY"
           echo "### Cobra publicada en $URL" >> "$GITHUB_STEP_SUMMARY"

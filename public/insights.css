@@ -5,3 +5,10 @@ body.insights .top a.marca { color: inherit; text-decoration: none; }
 .fuente { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--linea); border-radius: 999px; }
 .fuente .btn[aria-pressed="true"] { background: var(--acento-suave); color: var(--acento); }
 .aviso-insights { margin: 0; padding: 8px 20px; background: var(--oro-suave); color: var(--tinta); font-size: 14px; border-bottom: 1px solid var(--linea); }
+/* Borrador de recordatorio dentro del chat de AG Studio */
+.cobra-borrador { display: grid; gap: 8px; padding: 4px 0; font: 13px/1.4 var(--fuente); }
+.cobra-borrador-cab { margin: 0; font-weight: 600; color: var(--tinta); }
+.cobra-borrador input, .cobra-borrador textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--linea); border-radius: 8px; background: var(--sup); color: var(--tinta); resize: vertical; }
+.cobra-enviar { justify-self: start; padding: 7px 14px; border: 0; border-radius: 999px; background: #0070ba; color: #fff; font-weight: 700; cursor: pointer; }
+.cobra-enviar:disabled { opacity: .55; cursor: default; }
+.cobra-borrador-estado { margin: 0; color: var(--suave); }

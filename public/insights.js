@@ -1,8 +1,9 @@
 // Cobra Insights: tablero de AG Studio sobre las facturas del espacio (o datos de ejemplo).
 import { facturasEjemplo } from './insights-ejemplo.js';
 import { REPORTE } from './insights-reporte.js';
+import { crearHarness, VISTA_HERRAMIENTAS } from './insights-agente.js';
 
-const { createStudio, createAiHarness, AgStudioLicenseManager, AgStudioModuleRegistry, AgStudioAiModule, studioTheme } = window.agStudio;
+const { createStudio, AgStudioLicenseManager, AgStudioModuleRegistry, AgStudioAiModule, studioTheme } = window.agStudio;
 AgStudioModuleRegistry.registerModules([AgStudioAiModule]);
 
 // Colores de Cobra: verde para lo cobrado o a tiempo, rojo para lo vencido, gris y ámbar para el resto.
@@ -30,6 +31,7 @@ function filas(facturas, hoy = Date.now()) {
     const vencida = abierta && vence && vence.getTime() < hoy;
     const monto = Number(f.monto) || 0;
     return {
+      paypal_id: f.paypal_id || null,
       invoice: `#${f.numero || '—'}`,
       client: f.cliente || f.email || 'Unknown',
       description: f.concepto || '',
@@ -51,6 +53,7 @@ function filas(facturas, hoy = Date.now()) {
 }
 
 const CAMPOS = [
+  { id: 'paypal_id', name: 'PayPal ID', format: 'textFormat', hide: true },
   { id: 'invoice', name: 'Invoice', format: 'textFormat', description: 'PayPal invoice number' },
   { id: 'client', name: 'Client', format: 'textFormat', description: 'Who the invoice was sent to' },
   { id: 'description', name: 'Description', format: 'textFormat' },
@@ -138,10 +141,21 @@ export const adaptador = {
 };
 
 async function iniciar() {
-  const r = await fetch('/api/estado');
+  const [r, config] = await Promise.all([fetch('/api/estado'), fetch('/api/insights/config').then((x) => (x.ok ? x.json() : {})).catch(() => ({}))]);
+  if (config.licencia) AgStudioLicenseManager.setLicenseKey(config.licencia);
   const estado = r.ok ? await r.json() : { facturas: [] };
   const params = new URLSearchParams(location.search);
   const ejemplo = params.has('ejemplo') || !estado.facturas.length;
+  // Selector "My invoices / Sample data" y aviso cuando todavía no hay facturas propias.
+  document.getElementById('btn-mios').setAttribute('aria-pressed', String(!ejemplo));
+  document.getElementById('btn-ejemplo').setAttribute('aria-pressed', String(ejemplo));
+  document.getElementById('btn-mios').addEventListener('click', () => location.assign('/insights.html'));
+  document.getElementById('btn-ejemplo').addEventListener('click', () => location.assign('/insights.html?ejemplo=1'));
+  const aviso = document.getElementById('aviso');
+  if (ejemplo) {
+    aviso.hidden = false;
+    aviso.textContent = estado.facturas.length ? 'Showing sample data (fictional clients). Switch to "My invoices" to see yours.' : 'You have no invoices yet, so this is sample data (fictional clients). Bill your first client in the chat and your own numbers appear here.';
+  }
   const datos = filas(ejemplo ? facturasEjemplo() : estado.facturas);
   const studio = createStudio(document.getElementById('studio'), {
     mode: 'edit',
@@ -153,7 +167,8 @@ async function iniciar() {
       description: 'Invoices a freelancer sent with PayPal, one row per invoice.',
       sources: [{ id: 'invoices', name: 'Invoices', description: 'One row per PayPal invoice', data: datos, fields: CAMPOS }],
     },
-    ai: ({ api }) => (window.__harness = createAiHarness(api, { adapter: adaptador, primary: 'lead' })),
+    ai: ({ api }) => (window.__harness = crearHarness({ api, adapter: adaptador, contexto: { filas: () => datos, ejemplo: () => ejemplo } })),
+    aiToolDisplay: VISTA_HERRAMIENTAS,
   });
   window.__studio = studio;
 }

@@ -76,6 +76,8 @@ await page.screenshot({ path: new URL('./out-insights/reporte.png', import.meta.
 for (const l of resultado.log) console.log(l[1] ? 'ok ' : 'ERROR', l[0], (typeof l[2] === 'string' ? l[2] : JSON.stringify(l[2])).slice(0, 700));
 console.log(JSON.stringify(resultado.estado.pages[0].widgets).slice(0, 1500));
 if (errores.length) console.log(errores.join('\n'));
+// Al abrir, el tablero ocupa el lugar y el asistente de IA queda a la izquierda: los paneles de edición, cerrados.
+resultado.estado.panels = { filters: { collapsed: true }, edit: { collapsed: true }, data: { collapsed: true }, ai: { width: 360 } };
 const malos = resultado.log.filter((l) => !l[1]);
 if (!malos.length) {
   writeFileSync(

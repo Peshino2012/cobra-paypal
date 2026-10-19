@@ -267,5 +267,19 @@ export const REPORTE = {
     }
   ],
   "selectedPageId": "page-1",
-  "version": "3.0.0"
+  "version": "3.0.0",
+  "panels": {
+    "filters": {
+      "collapsed": true
+    },
+    "edit": {
+      "collapsed": true
+    },
+    "data": {
+      "collapsed": true
+    },
+    "ai": {
+      "width": 360
+    }
+  }
 };
