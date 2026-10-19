@@ -88,11 +88,11 @@ export const REPORTE = {
             ],
             "valueKey": [
               {
-                "id": "invoices.overdue_amount",
+                "id": "invoices.outstanding",
                 "aggregation": "sum"
               },
               {
-                "id": "invoices.outstanding",
+                "id": "invoices.overdue_amount",
                 "aggregation": "sum"
               }
             ]
@@ -218,25 +218,50 @@ export const REPORTE = {
           "xTrack": 0,
           "yTrack": 3,
           "xSpan": 7,
-          "ySpan": 6
+          "ySpan": 8
         },
         "estados": {
           "xTrack": 7,
           "yTrack": 3,
           "xSpan": 5,
-          "ySpan": 6
+          "ySpan": 8
         },
         "cobrado-mes": {
           "xTrack": 0,
-          "yTrack": 9,
+          "yTrack": 11,
           "xSpan": 7,
-          "ySpan": 6
+          "ySpan": 8
         },
         "demoras": {
           "xTrack": 7,
-          "yTrack": 9,
+          "yTrack": 11,
           "xSpan": 5,
-          "ySpan": 6
+          "ySpan": 8
+        }
+      },
+      "filter": {
+        "widget": {
+          "cobrado-mes": [
+            {
+              "field": {
+                "id": "invoices.paid_on"
+              },
+              "model": {
+                "operator": "isNotBlank"
+              }
+            }
+          ],
+          "demoras": [
+            {
+              "field": {
+                "id": "invoices.overdue_amount"
+              },
+              "model": {
+                "operator": "greaterThan",
+                "value": 0
+              }
+            }
+          ]
         }
       }
     }

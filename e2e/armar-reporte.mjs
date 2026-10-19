@@ -14,23 +14,29 @@ const PIEZAS = [
   [W('kpi-cobrado', 'value', 6, 0, 3, 3), { format: titulo('Collected'), dataMapping: { value: [{ id: 'invoices.collected', aggregation: 'sum' }] } }],
   [W('kpi-dias', 'value', 9, 0, 3, 3), { format: titulo('Avg. days to get paid'), dataMapping: { value: [{ id: 'invoices.days_to_pay', aggregation: 'avg' }] } }],
   [
-    W('deben', 'bar-chart-grouped', 0, 3, 7, 6),
+    W('deben', 'bar-chart-grouped', 0, 3, 7, 8),
     {
       format: titulo('Who owes you'),
-      dataMapping: { categoryKey: [{ id: 'invoices.client' }], valueKey: [{ id: 'invoices.overdue_amount', aggregation: 'sum' }, { id: 'invoices.outstanding', aggregation: 'sum' }] },
+      dataMapping: { categoryKey: [{ id: 'invoices.client' }], valueKey: [{ id: 'invoices.outstanding', aggregation: 'sum' }, { id: 'invoices.overdue_amount', aggregation: 'sum' }] },
       sort: [{ field: { id: 'invoices.outstanding', aggregation: 'sum' }, direction: 'desc' }],
     },
   ],
-  [W('estados', 'donut-chart', 7, 3, 5, 6), { format: titulo('Invoices by status'), dataMapping: { categoryKey: [{ id: 'invoices.status' }], valueKey: [{ id: 'invoices.amount', aggregation: 'sum' }] } }],
-  [W('cobrado-mes', 'column-chart-grouped', 0, 9, 7, 6), { format: titulo('Collected per month'), dataMapping: { categoryKey: [{ id: 'invoices.paid_on::month' }], valueKey: [{ id: 'invoices.collected', aggregation: 'sum' }] } }],
+  [W('estados', 'donut-chart', 7, 3, 5, 8), { format: titulo('Invoices by status'), dataMapping: { categoryKey: [{ id: 'invoices.status' }], valueKey: [{ id: 'invoices.amount', aggregation: 'sum' }] } }],
+  [W('cobrado-mes', 'column-chart-grouped', 0, 11, 7, 8), { format: titulo('Collected per month'), dataMapping: { categoryKey: [{ id: 'invoices.paid_on::month' }], valueKey: [{ id: 'invoices.collected', aggregation: 'sum' }] } }],
   [
-    W('demoras', 'grid', 7, 9, 5, 6),
+    W('demoras', 'grid', 7, 11, 5, 8),
     {
       format: titulo('Late payers'),
       dataMapping: { cols: [{ id: 'invoices.client' }, { id: 'invoices.overdue_amount', aggregation: 'sum' }, { id: 'invoices.days_overdue', aggregation: 'max' }, { id: 'invoices.reminders_sent', aggregation: 'sum' }] },
       sort: [{ field: { id: 'invoices.overdue_amount', aggregation: 'sum' }, direction: 'desc' }],
     },
   ],
+];
+
+// Filtros de cada widget: solo facturas pagadas en "cobrado por mes" y solo deudas vencidas en "late payers".
+const FILTROS = [
+  ['cobrado-mes', { field: { id: 'invoices.paid_on' }, model: { operator: 'isNotBlank' } }],
+  ['demoras', { field: { id: 'invoices.overdue_amount' }, model: { operator: 'greaterThan', value: 0 } }],
 ];
 
 const navegador = await chromium.launch();
@@ -45,7 +51,7 @@ await page.goto('http://127.0.0.1:8787/insights.html?ejemplo=1&vacio=1');
 await page.waitForFunction(() => window.__studio, null, { timeout: 60000 });
 await page.waitForTimeout(1500);
 
-const resultado = await page.evaluate(async (piezas) => {
+const resultado = await page.evaluate(async ([piezas, filtros]) => {
   const api = window.__studio;
   const t = api.getAiTools();
   const ctx = { signal: new AbortController().signal, run: { threadId: 'armado', runId: 'armado' }, success: (response, data) => ({ success: true, response, data }), error: (m) => ({ success: false, messages: m }) };
@@ -58,8 +64,12 @@ const resultado = await page.evaluate(async (piezas) => {
     const r = await t.configureWidget({ widgetType: w.type, widgetId: w.id }).execute({ toolCallId: `c-${w.id}`, name: 'configure_widget', args: { op: 'patch', widgetId: w.id, value: { type: w.type, ...valor } } }, ctx);
     log.push([`configure ${w.id}`, r.success, r]);
   }
+  for (const [widgetId, value] of filtros) {
+    const r = await t.addWidgetFilter().execute({ toolCallId: `f-${widgetId}`, name: 'add_widget_filter', args: { op: 'append', widgetId, value } }, ctx);
+    log.push([`filter ${widgetId}`, r.success, r]);
+  }
   return { log, estado: api.getState() };
-}, PIEZAS);
+}, [PIEZAS, FILTROS]);
 
 await page.waitForTimeout(3000);
 await page.screenshot({ path: new URL('./out-insights/reporte.png', import.meta.url).pathname });

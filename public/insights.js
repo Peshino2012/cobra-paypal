@@ -2,8 +2,21 @@
 import { facturasEjemplo } from './insights-ejemplo.js';
 import { REPORTE } from './insights-reporte.js';
 
-const { createStudio, createAiHarness, AgStudioLicenseManager, AgStudioModuleRegistry, AgStudioAiModule } = window.agStudio;
+const { createStudio, createAiHarness, AgStudioLicenseManager, AgStudioModuleRegistry, AgStudioAiModule, studioTheme } = window.agStudio;
 AgStudioModuleRegistry.registerModules([AgStudioAiModule]);
+
+// Colores de Cobra: verde para lo cobrado o a tiempo, rojo para lo vencido, gris y ámbar para el resto.
+const TEMA = studioTheme.withParams({
+  accentColor: '#128a5a',
+  fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  studioCanvasBackgroundColor: '#f4f6f3',
+  chartPaletteFills1Color: '#1f9d6b',
+  chartPaletteFills2Color: '#e5484d',
+  chartPaletteFills3Color: '#9aa8a0',
+  chartPaletteFills4Color: '#f2a541',
+  chartPaletteFills5Color: '#3b82f6',
+  chartPaletteFills6Color: '#8b5cf6',
+});
 
 const fecha = (s) => (s ? new Date(`${String(s).slice(0, 10)}T12:00:00Z`) : null);
 const DIA = 86_400_000;
@@ -133,6 +146,8 @@ async function iniciar() {
   const studio = createStudio(document.getElementById('studio'), {
     mode: 'edit',
     initialState: params.has('vacio') ? undefined : REPORTE,
+    layout: { columns: 12, rowHeight: 40 },
+    theme: TEMA,
     panels: { edit: { left: ['ai'], right: ['filters', 'edit', 'data'] } },
     data: {
       description: 'Invoices a freelancer sent with PayPal, one row per invoice.',
