@@ -1,0 +1,33 @@
+name: formatos-ia
+
+# Prueba qué formatos de pedido (con herramientas) acepta cada modelo de Workers AI. Resultado en la rama insights-prueba.
+on:
+  workflow_dispatch:
+    inputs:
+      modelos:
+        description: Modelos separados por espacios
+        default: '@cf/openai/gpt-oss-120b'
+
+permissions:
+  contents: write
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: mkdir -p salida && node e2e/formatos-ia.mjs ${{ inputs.modelos }} > salida/formatos.json
+      - name: Guardar en la rama insights-prueba
+        if: always()
+        run: |
+          cd salida
+          git init -q -b insights-prueba
+          git add .
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q -m "Formatos de Workers AI"
+          git push -f -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" insights-prueba

@@ -128,7 +128,7 @@ export async function turnoStudio(env, espacio, pedido, bytes) {
     console.error('studio', e);
     const cuota = /4006|daily free allocation|neurons/i.test(String(e?.message || e));
     const error = new ErrorStudio(cuota ? 429 : 502, cuota ? 'ai_quota' : 'ai_error', cuota ? 'The free AI quota for today is used up. The dashboard keeps working; try the assistant again later.' : 'The AI model failed. Try again.');
-    if (env.STUDIO_DEBUG) error.detalle = String(e?.message || e).slice(0, 2000);
+    if (env.STUDIO_DEBUG) error.detalle = String(e?.message || e).slice(0, 6000);
     throw error;
   }
   return { ...deRespuestas(r), model: modelo };
