@@ -11,14 +11,20 @@ const DIA = 86_400_000;
 function filas(facturas, hoy = Date.now()) {
   return facturas.map((f) => {
     const vence = fecha(f.vence);
-    const vencida = f.estado !== 'PAID' && f.estado !== 'CANCELLED' && vence && vence.getTime() < hoy;
+    const pagada = f.estado === 'PAID' || f.estado === 'MARKED_AS_PAID';
+    const abierta = !pagada && f.estado !== 'CANCELLED' && f.estado !== 'DRAFT';
+    const vencida = abierta && vence && vence.getTime() < hoy;
+    const monto = Number(f.monto) || 0;
     return {
       invoice: `#${f.numero || '—'}`,
       client: f.cliente || f.email || 'Unknown',
       description: f.concepto || '',
-      amount: Number(f.monto) || 0,
+      amount: monto,
+      outstanding: abierta ? monto : 0,
+      overdue_amount: vencida ? monto : 0,
+      collected: pagada ? monto : 0,
       currency: f.moneda || 'USD',
-      status: f.estado === 'PAID' || f.estado === 'MARKED_AS_PAID' ? 'Paid' : f.estado === 'CANCELLED' ? 'Cancelled' : vencida ? 'Overdue' : 'Awaiting payment',
+      status: pagada ? 'Paid' : f.estado === 'CANCELLED' ? 'Cancelled' : f.estado === 'DRAFT' ? 'Draft' : vencida ? 'Overdue' : 'Awaiting payment',
       issued: fecha(f.creada),
       due: vence,
       paid_on: fecha(f.pagada),
@@ -35,8 +41,11 @@ const CAMPOS = [
   { id: 'client', name: 'Client', format: 'textFormat', description: 'Who the invoice was sent to' },
   { id: 'description', name: 'Description', format: 'textFormat' },
   { id: 'amount', name: 'Amount', format: 'currencyFormat', description: 'Invoice total in its currency (mostly USD)' },
+  { id: 'outstanding', name: 'Outstanding', format: 'currencyFormat', description: 'Amount still owed: the invoice total if it is unpaid (awaiting payment or overdue), otherwise 0' },
+  { id: 'overdue_amount', name: 'Overdue amount', format: 'currencyFormat', description: 'Amount owed and already past its due date, otherwise 0' },
+  { id: 'collected', name: 'Collected', format: 'currencyFormat', description: 'Amount received: the invoice total if it was paid, otherwise 0' },
   { id: 'currency', name: 'Currency', format: 'textFormat' },
-  { id: 'status', name: 'Status', format: 'textFormat', description: 'Paid, Awaiting payment (not yet due), Overdue (past due date and unpaid) or Cancelled' },
+  { id: 'status', name: 'Status', format: 'textFormat', description: 'Paid, Awaiting payment (not yet due), Overdue (past due date and unpaid), Cancelled or Draft' },
   { id: 'issued', name: 'Issued', format: 'dateFormat' },
   { id: 'due', name: 'Due date', format: 'dateFormat' },
   { id: 'paid_on', name: 'Paid on', format: 'dateFormat' },

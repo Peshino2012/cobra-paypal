@@ -27,7 +27,7 @@ test('el pedido de AG Studio se traduce a un chat con herramientas', () => {
   assert.deepEqual(b.messages, [
     { role: 'system', content: 'You are the Orchestrator.' },
     { role: 'user', content: 'Who owes me the most?' },
-    { role: 'assistant', content: null, tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'view_schema', arguments: '{}' } }] },
+    { role: 'assistant', content: '', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'view_schema', arguments: '{}' } }] },
     { role: 'tool', tool_call_id: 'call_1', content: '{"tables":["invoices"]}' },
     { role: 'assistant', content: 'Looking…' },
   ]);

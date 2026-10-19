@@ -37,7 +37,7 @@ export function aChat(pedido) {
       const llamada = { id: it.callId, type: 'function', function: { name: it.name, arguments: it.arguments || '{}' } };
       // Las llamadas seguidas (y el texto que las precede en el mismo turno) van en un solo mensaje del asistente.
       if (ultimo?.role === 'assistant') (ultimo.tool_calls ||= []).push(llamada);
-      else messages.push({ role: 'assistant', content: null, tool_calls: [llamada] });
+      else messages.push({ role: 'assistant', content: '', tool_calls: [llamada] });
     } else if (it.type === 'function_call_output') {
       messages.push({ role: 'tool', tool_call_id: it.callId, content: typeof it.output === 'string' ? it.output : JSON.stringify(it.output) });
     }
