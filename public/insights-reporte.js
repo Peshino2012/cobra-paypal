@@ -1,0 +1,246 @@
+// Tablero inicial de Cobra Insights (generado por e2e/armar-reporte.mjs con las herramientas de AG Studio).
+export const REPORTE = {
+  "pages": [
+    {
+      "id": "page-1",
+      "widgets": {
+        "kpi-pendiente": {
+          "type": "value",
+          "format": {
+            "title": {
+              "enabled": true,
+              "text": "Outstanding"
+            }
+          },
+          "dataMapping": {
+            "value": [
+              {
+                "id": "invoices.outstanding",
+                "aggregation": "sum"
+              }
+            ]
+          }
+        },
+        "kpi-vencido": {
+          "type": "value",
+          "format": {
+            "title": {
+              "enabled": true,
+              "text": "Overdue"
+            }
+          },
+          "dataMapping": {
+            "value": [
+              {
+                "id": "invoices.overdue_amount",
+                "aggregation": "sum"
+              }
+            ]
+          }
+        },
+        "kpi-cobrado": {
+          "type": "value",
+          "format": {
+            "title": {
+              "enabled": true,
+              "text": "Collected"
+            }
+          },
+          "dataMapping": {
+            "value": [
+              {
+                "id": "invoices.collected",
+                "aggregation": "sum"
+              }
+            ]
+          }
+        },
+        "kpi-dias": {
+          "type": "value",
+          "format": {
+            "title": {
+              "enabled": true,
+              "text": "Avg. days to get paid"
+            }
+          },
+          "dataMapping": {
+            "value": [
+              {
+                "id": "invoices.days_to_pay",
+                "aggregation": "avg"
+              }
+            ]
+          }
+        },
+        "deben": {
+          "type": "bar-chart-grouped",
+          "format": {
+            "title": {
+              "enabled": true,
+              "text": "Who owes you"
+            }
+          },
+          "dataMapping": {
+            "categoryKey": [
+              {
+                "id": "invoices.client"
+              }
+            ],
+            "valueKey": [
+              {
+                "id": "invoices.overdue_amount",
+                "aggregation": "sum"
+              },
+              {
+                "id": "invoices.outstanding",
+                "aggregation": "sum"
+              }
+            ]
+          },
+          "sort": [
+            {
+              "field": {
+                "id": "invoices.outstanding",
+                "aggregation": "sum"
+              },
+              "direction": "desc"
+            }
+          ]
+        },
+        "estados": {
+          "type": "donut-chart",
+          "format": {
+            "title": {
+              "enabled": true,
+              "text": "Invoices by status"
+            }
+          },
+          "dataMapping": {
+            "categoryKey": [
+              {
+                "id": "invoices.status"
+              }
+            ],
+            "valueKey": [
+              {
+                "id": "invoices.amount",
+                "aggregation": "sum"
+              }
+            ]
+          }
+        },
+        "cobrado-mes": {
+          "type": "column-chart-grouped",
+          "format": {
+            "title": {
+              "enabled": true,
+              "text": "Collected per month"
+            }
+          },
+          "dataMapping": {
+            "categoryKey": [
+              {
+                "id": "invoices.paid_on::month"
+              }
+            ],
+            "valueKey": [
+              {
+                "id": "invoices.collected",
+                "aggregation": "sum"
+              }
+            ]
+          }
+        },
+        "demoras": {
+          "type": "grid",
+          "format": {
+            "title": {
+              "enabled": true,
+              "text": "Late payers"
+            }
+          },
+          "dataMapping": {
+            "cols": [
+              {
+                "id": "invoices.client"
+              },
+              {
+                "id": "invoices.overdue_amount",
+                "aggregation": "sum"
+              },
+              {
+                "id": "invoices.days_overdue",
+                "aggregation": "max"
+              },
+              {
+                "id": "invoices.reminders_sent",
+                "aggregation": "sum"
+              }
+            ]
+          },
+          "sort": [
+            {
+              "field": {
+                "id": "invoices.overdue_amount",
+                "aggregation": "sum"
+              },
+              "direction": "desc"
+            }
+          ]
+        }
+      },
+      "widgetLayout": {
+        "kpi-pendiente": {
+          "xTrack": 0,
+          "yTrack": 0,
+          "xSpan": 3,
+          "ySpan": 3
+        },
+        "kpi-vencido": {
+          "xTrack": 3,
+          "yTrack": 0,
+          "xSpan": 3,
+          "ySpan": 3
+        },
+        "kpi-cobrado": {
+          "xTrack": 6,
+          "yTrack": 0,
+          "xSpan": 3,
+          "ySpan": 3
+        },
+        "kpi-dias": {
+          "xTrack": 9,
+          "yTrack": 0,
+          "xSpan": 3,
+          "ySpan": 3
+        },
+        "deben": {
+          "xTrack": 0,
+          "yTrack": 3,
+          "xSpan": 7,
+          "ySpan": 6
+        },
+        "estados": {
+          "xTrack": 7,
+          "yTrack": 3,
+          "xSpan": 5,
+          "ySpan": 6
+        },
+        "cobrado-mes": {
+          "xTrack": 0,
+          "yTrack": 9,
+          "xSpan": 7,
+          "ySpan": 6
+        },
+        "demoras": {
+          "xTrack": 7,
+          "yTrack": 9,
+          "xSpan": 5,
+          "ySpan": 6
+        }
+      }
+    }
+  ],
+  "selectedPageId": "page-1",
+  "version": "3.0.0"
+};

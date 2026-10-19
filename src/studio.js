@@ -4,8 +4,8 @@
 // en el formato de AG Studio. Las herramientas las ejecuta Studio en el navegador.
 
 export const MODELO_STUDIO = '@cf/openai/gpt-oss-120b';
-export const MAX_TURNOS_HORA = 80; // por espacio
-export const MAX_TURNOS_DIA = 400; // entre todos los espacios, para cuidar la cuota de Workers AI
+export const MAX_TURNOS_HORA = 40; // por espacio
+export const MAX_TURNOS_DIA = 70; // entre todos los espacios: ~150 neuronas por turno, la cuota gratis es de 10.000 por día
 const MAX_BYTES = 300_000;
 
 export class ErrorStudio extends Error {
@@ -57,8 +57,43 @@ export function aChat(pedido) {
   return cuerpo;
 }
 
+/**
+ * Arregla un error típico del modelo con los esquemas de AG Studio: donde se espera un objeto con `id`
+ * (por ejemplo `delegate_to({ type: { id: 'page' } })`), manda solo el texto (`type: 'page'`).
+ * Si la propiedad acepta objetos `{ id }` con ese valor, lo envuelve; los demás campos de esa variante que
+ * el modelo dejó afuera (como `pageId`) se mueven adentro.
+ */
+export function repararArgumentos(argumentos, esquema) {
+  let args;
+  try {
+    args = JSON.parse(argumentos || '{}');
+  } catch {
+    return argumentos;
+  }
+  if (!args || typeof args !== 'object' || !esquema?.properties) return argumentos;
+  let cambio = false;
+  for (const [clave, prop] of Object.entries(esquema.properties)) {
+    const valor = args[clave];
+    if (typeof valor !== 'string') continue;
+    const variantes = (prop.anyOf || prop.oneOf || [prop]).filter((v) => v?.type === 'object' && v.properties?.id);
+    const variante = variantes.find((v) => (v.properties.id.enum || []).some((e) => e.toLowerCase() === valor.toLowerCase()));
+    if (!variante) continue;
+    const objeto = { id: variante.properties.id.enum.find((e) => e.toLowerCase() === valor.toLowerCase()) };
+    for (const extra of Object.keys(variante.properties)) {
+      if (extra !== 'id' && extra in args && !(extra in esquema.properties)) {
+        objeto[extra] = args[extra];
+        delete args[extra];
+      }
+    }
+    args[clave] = objeto;
+    cambio = true;
+  }
+  return cambio ? JSON.stringify(args) : argumentos;
+}
+
 /** Respuesta de chat (o de la API Responses) → AgLlmResponse de AG Studio. */
-export function deChat(r, ahora = Date.now()) {
+export function deChat(r, ahora = Date.now(), herramientas = []) {
+  const esquemaDe = (nombre) => herramientas.find((t) => t.name === nombre)?.parameters;
   let n = 0;
   const id = (prefijo) => `${prefijo}_${ahora.toString(36)}_${n++}`;
   const output = [];
@@ -68,7 +103,8 @@ export function deChat(r, ahora = Date.now()) {
     if (razonamiento) output.push({ id: id('rs'), kind: 'output', type: 'reasoning', summary: [], content: [{ type: 'text', text: razonamiento }] });
     if (msj.content) output.push({ id: id('msg'), kind: 'output', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'text', text: msj.content, annotations: [] }] });
     for (const tc of msj.tool_calls || []) {
-      output.push({ id: id('fc'), kind: 'output', type: 'function_call', callId: tc.id || id('call'), name: tc.function?.name, arguments: tc.function?.arguments || '{}', status: 'completed' });
+      const nombre = tc.function?.name;
+      output.push({ id: id('fc'), kind: 'output', type: 'function_call', callId: tc.id || id('call'), name: nombre, arguments: repararArgumentos(tc.function?.arguments || '{}', esquemaDe(nombre)), status: 'completed' });
     }
   }
   for (const it of r?.output || []) {
@@ -135,5 +171,5 @@ export async function turnoStudio(env, espacio, pedido, bytes) {
     if (env.STUDIO_DEBUG) error.detalle = String(e?.message || e).slice(0, 6000);
     throw error;
   }
-  return { ...deChat(r), model: modelo };
+  return { ...deChat(r, Date.now(), pedido.tools), model: modelo };
 }

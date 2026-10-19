@@ -1,5 +1,6 @@
 // Cobra Insights: tablero de AG Studio sobre las facturas del espacio (o datos de ejemplo).
 import { facturasEjemplo } from './insights-ejemplo.js';
+import { REPORTE } from './insights-reporte.js';
 
 const { createStudio, createAiHarness, AgStudioLicenseManager, AgStudioModuleRegistry, AgStudioAiModule } = window.agStudio;
 AgStudioModuleRegistry.registerModules([AgStudioAiModule]);
@@ -78,9 +79,26 @@ function* eventosDe(respuesta) {
 
 const fallida = (error) => ({ id: `err_${Date.now()}`, createdAt: Date.now(), status: 'failed', error, output: [] });
 
+// Tope por pedido del usuario (el pedido y todas sus delegaciones): cuida la cuota diaria de IA si un agente se traba.
+export const MAX_PASOS = 30;
+const raiz = new Map(); // runId → run raíz
+const pasos = new Map(); // run raíz → { n, ultimas: [llamadas] }
+function controlar(trace) {
+  if (!trace?.runId) return null;
+  const r = trace.parentRunId ? raiz.get(trace.parentRunId) || trace.parentRunId : trace.runId;
+  raiz.set(trace.runId, r);
+  const c = pasos.get(r) || { n: 0, ultimas: [] };
+  pasos.set(r, c);
+  c.n++;
+  if (c.n > MAX_PASOS) return { code: 'step_limit', message: `I stopped after ${MAX_PASOS} steps to protect the free AI quota. Try a simpler request.` };
+  return c;
+}
+
 window.__turnos = [];
 export const adaptador = {
-  executeTurn(request, { signal } = {}) {
+  executeTurn(request, { signal, trace } = {}) {
+    const control = controlar(trace);
+    if (control?.code) return { stream: (async function* () {})(), complete: Promise.resolve(fallida(control)) };
     const complete = fetch('/api/insights/llm', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Cobra': '1' }, body: JSON.stringify(request), signal })
       .then(async (r) => {
         const j = await r.json().catch(() => ({}));
@@ -88,7 +106,13 @@ export const adaptador = {
       })
       .catch((e) => (signal?.aborted ? { ...fallida({ code: 'cancelled', message: 'Cancelled' }), status: 'cancelled' } : fallida({ code: 'network', message: String(e?.message || e) })))
       .then((respuesta) => {
-        window.__turnos.push({ request, respuesta });
+        window.__turnos.push({ request, respuesta, trace });
+        // Si el agente repite la misma llamada tres veces seguidas, está trabado: se corta.
+        const llamadas = respuesta.output?.filter((o) => o.type === 'function_call').map((o) => `${o.name}:${o.arguments}`).join('|');
+        if (control && llamadas) {
+          control.ultimas = [...control.ultimas, llamadas].slice(-3);
+          if (control.ultimas.length === 3 && new Set(control.ultimas).size === 1) return fallida({ code: 'loop', message: 'The assistant got stuck repeating the same step, so I stopped it. Try rephrasing your request.' });
+        }
         return respuesta;
       });
     return {
@@ -103,10 +127,12 @@ export const adaptador = {
 async function iniciar() {
   const r = await fetch('/api/estado');
   const estado = r.ok ? await r.json() : { facturas: [] };
-  const ejemplo = new URLSearchParams(location.search).has('ejemplo') || !estado.facturas.length;
+  const params = new URLSearchParams(location.search);
+  const ejemplo = params.has('ejemplo') || !estado.facturas.length;
   const datos = filas(ejemplo ? facturasEjemplo() : estado.facturas);
   const studio = createStudio(document.getElementById('studio'), {
     mode: 'edit',
+    initialState: params.has('vacio') ? undefined : REPORTE,
     panels: { edit: { left: ['ai'], right: ['filters', 'edit', 'data'] } },
     data: {
       description: 'Invoices a freelancer sent with PayPal, one row per invoice.',

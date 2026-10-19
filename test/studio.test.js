@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../src/index.js';
-import { aChat, deChat, contarTurno, MAX_TURNOS_HORA, MODELO_STUDIO } from '../src/studio.js';
+import { aChat, deChat, repararArgumentos, contarTurno, MAX_TURNOS_HORA, MODELO_STUDIO } from '../src/studio.js';
 import { crearD1 } from './d1-falsa.js';
 
 const pedido = {
@@ -79,6 +79,28 @@ test('la respuesta del modelo vuelve en el formato de AG Studio', () => {
 
   const soloRazona = deChat({ choices: [{ message: { content: null, reasoning_content: 'mmm' } }] });
   assert.equal(soloRazona.status, 'failed', 'pensar sin responder no sirve');
+});
+
+test('se arregla delegate_to cuando el modelo manda el agente como texto', () => {
+  const esquema = {
+    type: 'object',
+    properties: {
+      type: {
+        anyOf: [
+          { type: 'object', properties: { id: { type: 'string', enum: ['data'] } }, required: ['id'] },
+          { type: 'object', properties: { id: { type: 'string', enum: ['page'] }, pageId: { type: 'string', enum: ['page-1'] } }, required: ['id'] },
+        ],
+      },
+      instructions: { type: 'string' },
+    },
+  };
+  assert.deepEqual(JSON.parse(repararArgumentos('{"type":"Page","pageId":"page-1","instructions":"Add a chart"}', esquema)), { type: { id: 'page', pageId: 'page-1' }, instructions: 'Add a chart' });
+  assert.equal(repararArgumentos('{"type":{"id":"data"},"instructions":"x"}', esquema), '{"type":{"id":"data"},"instructions":"x"}', 'si ya viene bien, no se toca');
+  assert.equal(repararArgumentos('{"type":"nada","instructions":"x"}', esquema), '{"type":"nada","instructions":"x"}', 'un agente que no existe no se inventa');
+  assert.equal(repararArgumentos('no es json', esquema), 'no es json');
+
+  const r = deChat({ choices: [{ message: { content: '', tool_calls: [{ id: 'c1', function: { name: 'delegate_to', arguments: '{"type":"page","instructions":"x"}' } }] } }] }, 1, [{ name: 'delegate_to', parameters: esquema }]);
+  assert.deepEqual(JSON.parse(r.output[0].arguments), { type: { id: 'page' }, instructions: 'x' });
 });
 
 test('límite de turnos por espacio y por hora', async () => {
