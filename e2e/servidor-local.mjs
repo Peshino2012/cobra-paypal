@@ -25,6 +25,7 @@ if (process.env.IA_FALSA) {
     },
   };
 } else if (process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID) {
+  env.STUDIO_DEBUG = '1';
   // Workers AI real por la API REST de Cloudflare (solo pedidos JSON; se usa en CI para probar Cobra Insights).
   env.AI = {
     async run(modelo, cuerpo) {

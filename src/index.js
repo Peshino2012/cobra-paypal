@@ -412,7 +412,7 @@ async function enrutar(request, env) {
       return con(json(await turnoStudio(env, espacio, JSON.parse(crudo || 'null'), crudo.length)));
     } catch (e) {
       if (e instanceof SyntaxError) return con(json({ error: { code: 'bad_request', message: 'Invalid JSON' } }, 400));
-      if (e instanceof ErrorStudio) return con(json({ error: { code: e.codigo, message: e.message } }, e.status));
+      if (e instanceof ErrorStudio) return con(json({ error: { code: e.codigo, message: e.message, ...(e.detalle ? { detail: e.detalle } : {}) } }, e.status));
       throw e;
     }
   }
