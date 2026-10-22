@@ -1,0 +1,79 @@
+{
+  "marcas": [
+    {
+      "id": "intro",
+      "t": 0.028
+    },
+    {
+      "id": "problema",
+      "t": 10.743
+    },
+    {
+      "id": "chat",
+      "t": 22.443
+    },
+    {
+      "id": "enviar",
+      "t": 38.342
+    },
+    {
+      "id": "paypal",
+      "t": 50.593
+    },
+    {
+      "id": "voz",
+      "t": 55.108
+    },
+    {
+      "id": "vozNota",
+      "t": 64.257
+    },
+    {
+      "id": "vozBorrador",
+      "t": 71.491
+    },
+    {
+      "id": "recordatorio",
+      "t": 81.507
+    },
+    {
+      "id": "pagado",
+      "t": 94.823
+    },
+    {
+      "id": "tablero",
+      "t": 106.039
+    },
+    {
+      "id": "insights",
+      "t": 118.772
+    },
+    {
+      "id": "insightsAgente",
+      "t": 131.555
+    },
+    {
+      "id": "insightsGrafico",
+      "t": 140.971
+    },
+    {
+      "id": "cierre",
+      "t": 227.47
+    }
+  ],
+  "vozInicio": 64.259,
+  "duracionTotal": 239.639,
+  "cortes": [
+    {
+      "desde": 115.864,
+      "hasta": 118.572
+    },
+    {
+      "desde": 150.179,
+      "hasta": 223.001
+    }
+  ],
+  "errores": [
+    "Insights: el gráfico nuevo no apareció en el lienzo"
+  ]
+}
