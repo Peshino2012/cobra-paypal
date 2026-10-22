@@ -48,14 +48,22 @@ async function rotulo(texto = rotuloActual) {
   }, texto || '');
 }
 
-/* ---------- Cortes: la espera de los agentes de Insights se saca del video (y se avisa) ---------- */
+/* ---------- Cortes: lo que no aporta (esperas de los agentes, página trabada) se saca del video ---------- */
 
 const cortes = [];
 let finNarracion = 0;
-/** Espera a que el asistente de AG Studio termine. Si tardó más que la narración, corta la espera y lo avisa. */
+/**
+ * Espera a que la página vuelva a dibujar. En el runner de Actions, AG Studio puede trabar la página varios
+ * segundos (sin GPU): durante ese tiempo el video queda congelado y lo que hace el script se ve tarde.
+ */
+const asentar = () => page.evaluate(() => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok))));
+/** Espera a que el asistente de AG Studio termine. */
 async function esperarAgente(maxSegundos = 240) {
   await page.waitForFunction(() => !document.querySelector('.ag-studio-ai-status-bar-stop')?.classList.contains('ag-hidden'), null, { timeout: 15000 }).catch(() => {});
   await page.waitForFunction(() => document.querySelector('.ag-studio-ai-status-bar-stop')?.classList.contains('ag-hidden'), null, { timeout: maxSegundos * 1000, polling: 250 });
+}
+/** Corta desde que terminó la narración de la escena hasta ahora (si vale la pena); devuelve los segundos cortados. */
+function cortarEspera() {
   const desde = finNarracion + 0.4;
   const hasta = ahora() - 0.4;
   if (hasta - desde < 1.5) return 0;
@@ -163,41 +171,60 @@ const ACCIONES = {
       t.style.borderRadius = '16px';
     });
   },
-  async insights() {
-    await page.goto(`${URL_APP}insights.html?ejemplo=1`);
-    await page.waitForFunction(() => window.__studio && window.__harness, null, { timeout: 60000 });
-    await esperar(600);
-    await rotulo();
-  },
+  // La carga del tablero va en PREPARAR (se corta del video).
+  insights: () => rotulo(),
   async insightsAgente() {
     await page.locator('.ag-studio-ai-prompt-starter', { hasText: 'Chase the most overdue' }).click();
-    const cortado = await esperarAgente();
+    await esperarAgente();
     // La tarjeta del borrador aparece cerrada: se abre para que se vean el asunto, el mensaje y el botón.
     if (!(await page.locator('.cobra-borrador textarea').last().isVisible().catch(() => false))) {
       await page.getByText('Payment reminder draft').last().click().catch(() => {});
     }
+    await asentar();
+    const cortado = cortarEspera();
     if (cortado) await rotulo(avisoCorte(cortado) + rotuloActual);
     await esperar(2500);
   },
   async insightsGrafico() {
     const widgets = () => page.evaluate(() => Object.keys(window.__studio.getState().pages[0].widgets).length);
+    const lienzo = page.locator('.ag-studio-layout');
     const antes = await widgets();
+    const alto = await lienzo.evaluate((e) => e.scrollHeight);
     const caja = page.getByRole('textbox', { name: 'Message input' });
     await caja.click();
     await caja.pressSequentially('Add a bar chart of the collected amount by client', { delay: 28 });
     await page.getByRole('button', { name: 'Send message' }).click();
-    const cortado = await esperarAgente();
-    if ((await widgets()) <= antes) errores.push('Insights: los agentes de Studio no agregaron el gráfico');
-    // Studio pone los widgets nuevos al final del lienzo.
-    await page.locator('.ag-studio-layout').evaluate((e) => e.scrollTo({ top: e.scrollHeight, behavior: 'smooth' }));
+    await esperarAgente();
+    // Studio pone los widgets nuevos al final del lienzo: se espera a que el gráfico esté dibujado antes de bajar.
+    await page.waitForFunction((n) => Object.keys(window.__studio.getState().pages[0].widgets).length > n, antes, { timeout: 30000 }).catch(() => errores.push('Insights: los agentes de Studio no agregaron el gráfico'));
+    await page.waitForFunction((h) => document.querySelector('.ag-studio-layout').scrollHeight > h, alto, { timeout: 30000 }).catch(() => errores.push('Insights: el gráfico nuevo no apareció en el lienzo'));
+    await esperar(1500);
+    await asentar();
+    const cortado = cortarEspera();
     await rotulo(`${avisoCorte(cortado)}chart added by AG Studio’s agents`);
-    await esperar(3500);
+    await lienzo.evaluate((e) => e.scrollTo({ top: e.scrollHeight, behavior: 'smooth' }));
+    await esperar(4000);
+  },
+  cierre: () => {},
+};
+
+// Lo que se hace antes de que arranque la escena (y su narración): cargar páginas pesadas. Ese tiempo se corta.
+const PREPARAR = {
+  async insights() {
+    await page.goto(`${URL_APP}insights.html?ejemplo=1`);
+    await page.waitForFunction(() => window.__studio && window.__harness, null, { timeout: 60000 });
+    await page.locator('.cobra-marcador').first().waitFor({ timeout: 30000 }).catch(() => {});
+    await esperar(1500);
   },
   cierre: () => tarjeta(`<h1>Cobra <span>🐍💸</span></h1><p>Bill in one sentence. Let the agent do the chasing.</p><span class="chip">PayPal Invoicing v2</span><span class="chip">PayPal Webhooks (verified)</span><span class="chip">AG Studio + Studio Agent Framework</span><span class="chip">Llama 3.3 · Whisper · gpt-oss on Workers AI</span><span class="chip">Cloudflare Workers + D1</span><p style="margin-top:28px;font-size:20px;opacity:.75">Live demo: cobra.peshino2012.workers.dev · Code: github.com/Peshino2012/cobra-paypal</p>`),
 };
 
 const marcas = [];
 for (const e of ESCENAS) {
+  const previo = ahora();
+  if (PREPARAR[e.id]) await PREPARAR[e.id]();
+  await asentar();
+  if (ahora() - previo > 1.2) cortes.push({ desde: previo + 0.2, hasta: ahora() - 0.2 });
   const inicio = ahora();
   marcas.push({ id: e.id, t: inicio });
   rotuloActual = e.rotulo || '';
@@ -213,6 +240,6 @@ await ctx.close();
 await navegador.close();
 renameSync(ruta, `${OUT}video.webm`);
 writeFileSync(`${OUT}marcas.json`, JSON.stringify({ marcas, vozInicio: datos.vozInicio, duracionTotal, cortes, errores }, null, 2));
-const final = duracionTotal - cortes.reduce((s, c) => s + c.hasta - c.desde, 0);
+const final = duracionTotal - [...cortes].sort((a, b) => a.desde - b.desde).reduce((s, c, i, v) => s + c.hasta - Math.max(c.desde, i ? Math.min(c.hasta, v[i - 1].hasta) : c.desde), 0);
 console.log(JSON.stringify({ duracionTotal, final, cortes, errores, facturas: [datos.n1, datos.n2] }));
 if (final > 178) throw new Error(`El video dura ${final.toFixed(0)} s: tiene que durar menos de 3 minutos`);

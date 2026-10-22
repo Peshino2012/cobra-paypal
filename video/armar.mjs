@@ -4,14 +4,22 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
 const OUT = new URL('./out/', import.meta.url).pathname;
-const { marcas, vozInicio, duracionTotal, cortes = [] } = JSON.parse(readFileSync(`${OUT}marcas.json`, 'utf8'));
+const datos = JSON.parse(readFileSync(`${OUT}marcas.json`, 'utf8'));
+const { marcas, vozInicio, duracionTotal } = datos;
+// Cortes ordenados y sin superponerse.
+const cortes = [];
+for (const c of [...(datos.cortes || [])].sort((a, b) => a.desde - b.desde)) {
+  const ultimo = cortes.at(-1);
+  if (ultimo && c.desde <= ultimo.hasta) ultimo.hasta = Math.max(ultimo.hasta, c.hasta);
+  else cortes.push({ ...c });
+}
 
 // Segundo del video final que corresponde a un segundo de la grabación.
 const enFinal = (t) => t - cortes.reduce((s, c) => s + Math.max(0, Math.min(t, c.hasta) - c.desde), 0);
 const duracionFinal = enFinal(duracionTotal);
 const tramos = [];
 let desde = 0;
-for (const c of [...cortes].sort((a, b) => a.desde - b.desde)) {
+for (const c of cortes) {
   tramos.push([desde, c.desde]);
   desde = c.hasta;
 }
