@@ -41,10 +41,13 @@ jobs:
             video/out/hoja.png
             video/out/marcas.json
             video/out/duraciones.json
+      # También si falla la grabación: así las voces ya pagadas con la cuota de Workers AI no se pierden.
       - name: Guardar en la rama demo-video
+        if: always()
         run: |
           cd video/out
+          [ -d voces ] || exit 0
           git init -q -b demo-video
-          git add cobra-demo.mp4 hoja.png marcas.json duraciones.json voces
+          for f in cobra-demo.mp4 hoja.png marcas.json duraciones.json voces; do [ -e "$f" ] && git add "$f"; done
           git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q -m "Video de demo (${GITHUB_SHA::7})"
           git push -f -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" demo-video

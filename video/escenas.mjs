@@ -6,12 +6,12 @@ export const ESCENAS = [
   },
   {
     id: 'problema',
-    narracion: 'Millions of freelancers in Latin America work for clients abroad. Doing the work is easy. Getting paid is not: tedious invoices, awkward reminders, and local tax caps that global tools ignore.',
+    narracion: 'Freelancers in Latin America bill clients abroad, and getting paid is the hard part: tedious invoices, awkward reminders, and local tax caps that global tools ignore.',
   },
   {
     id: 'chat',
     rotulo: 'Plain-language request → structured invoice draft (Llama 3.3 on Workers AI)',
-    narracion: 'This is the app, running live on the PayPal sandbox. I just write what I need. Llama 3.3 on Cloudflare Workers AI turns it into a structured draft: client, email, items, currency and due date. Nothing is sent until I confirm.',
+    narracion: 'This is the app, live on the PayPal sandbox. I write what I need, and Llama 3.3 on Workers AI turns it into a draft: client, email, items, currency and due date. Nothing is sent until I confirm.',
   },
   {
     id: 'enviar',
@@ -38,26 +38,36 @@ export const ESCENAS = [
   {
     id: 'recordatorio',
     rotulo: 'AI-written reminder in the client’s language, sent by PayPal',
-    narracion: 'Chasing payments is the worst part. I ask Cobra to remind Delta Studio, and it writes a friendly reminder in the client’s language. I can edit it before PayPal sends it. With auto-reminders on, Cobra follows up overdue invoices by itself.',
+    narracion: 'I ask Cobra to remind Delta Studio, and it writes a friendly reminder in the client’s language, which I can edit before PayPal sends it. With auto-reminders on, it chases overdue invoices by itself.',
   },
   {
     id: 'pagado',
     rotulo: 'Payments: verified PayPal webhooks, or record one paid outside PayPal',
-    narracion: 'When a client pays through PayPal, a verified webhook updates the invoice and Cobra tells me right away. If a client paid by bank transfer, I just say so, and Cobra records the payment in PayPal.',
+    narracion: 'When a client pays through PayPal, a verified webhook updates the invoice. If they paid by bank transfer, I just say so, and Cobra records it in PayPal.',
   },
   {
     id: 'tablero',
     rotulo: 'Income in pesos (official and MEP rates) and Argentina’s monotributo cap',
-    narracion: 'The dashboard shows what I collected and what is pending, converted to pesos at the official and MEP rates. It also tracks Argentina’s monotributo cap, so I know before I outgrow my tax category.',
+    narracion: 'The dashboard shows collected and pending income in pesos, at the official and MEP rates, and tracks Argentina’s monotributo cap.',
   },
   {
-    id: 'consulta',
-    rotulo: 'Questions answered from real data, never invented',
-    narracion: 'I can ask questions in plain language, and the answers come from my real data, never invented by the model.',
+    id: 'insights',
+    rotulo: 'Cobra Insights: an AG Studio report + our own “Collections scoreboard” widget · sample data',
+    narracion: 'For the bigger picture, there is Cobra Insights, built with AG Studio and shown here with sample data. Our own scoreboard widget ranks who owes the most, and how late they are.',
+  },
+  {
+    id: 'insightsAgente',
+    rotulo: 'Cobra’s agent (Studio Agent Framework + gpt-oss-120b): editable draft → “Send via PayPal”',
+    narracion: 'Cobra’s agent lives in the AI panel. It reads the data and drafts a reminder for the most overdue client, which I can edit and send through PayPal.',
+  },
+  {
+    id: 'insightsGrafico',
+    rotulo: 'Cobra hands off to AG Studio’s built-in agents, which add the chart',
+    narracion: 'Need a new chart? Cobra hands the job to AG Studio’s own agents, which build it right on the canvas, all running on Cloudflare Workers AI.',
   },
   {
     id: 'cierre',
-    narracion: 'Cobra. PayPal Invoicing and Webhooks, with Llama 3.3 and Whisper on Cloudflare Workers AI. Bill in one sentence, and let the agent do the chasing.',
+    narracion: 'Cobra. PayPal Invoicing and Webhooks, AG Studio for insights, and Workers AI underneath. Bill in one sentence, and let the agent do the chasing.',
   },
 ];
 

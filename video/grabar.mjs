@@ -1,5 +1,6 @@
 // Graba el video de demo contra la app publicada (PayPal sandbox y Workers AI reales), escena por escena,
-// esperando en cada una lo que dura su narración. Deja out/video.webm y out/marcas.json (segundo de inicio de cada escena).
+// esperando en cada una lo que dura su narración. Deja out/video.webm y out/marcas.json (segundo de inicio de cada escena
+// y los tramos que se cortan mientras los agentes de Insights trabajan, avisados en pantalla).
 //   node video/grabar.mjs https://cobra.peshino2012.workers.dev
 import { chromium } from '@playwright/test';
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
@@ -39,13 +40,29 @@ async function rotulo(texto = rotuloActual) {
     if (!r) {
       r = document.createElement('div');
       r.id = 'rotulo-demo';
-      Object.assign(r.style, { position: 'fixed', left: '50%', top: '76px', pointerEvents: 'none', transform: 'translateX(-50%)', maxWidth: '86%', padding: '10px 18px', borderRadius: '12px', background: 'rgba(11,59,46,.94)', color: '#fff', font: '600 18px/1.35 Inter,system-ui,sans-serif', zIndex: 99999, boxShadow: '0 8px 30px rgba(0,0,0,.25)', textAlign: 'center' });
+      Object.assign(r.style, { position: 'fixed', left: '50%', top: '76px', pointerEvents: 'none', transform: 'translateX(-50%)', width: 'max-content', maxWidth: '86vw', padding: '10px 18px', borderRadius: '12px', background: 'rgba(11,59,46,.94)', color: '#fff', font: '600 18px/1.35 Inter,system-ui,sans-serif', zIndex: 99999, boxShadow: '0 8px 30px rgba(0,0,0,.25)', textAlign: 'center' });
       document.body.append(r);
     }
     r.textContent = t;
     r.hidden = !t;
   }, texto || '');
 }
+
+/* ---------- Cortes: la espera de los agentes de Insights se saca del video (y se avisa) ---------- */
+
+const cortes = [];
+let finNarracion = 0;
+/** Espera a que el asistente de AG Studio termine. Si tardó más que la narración, corta la espera y lo avisa. */
+async function esperarAgente(maxSegundos = 240) {
+  await page.waitForFunction(() => !document.querySelector('.ag-studio-ai-status-bar-stop')?.classList.contains('ag-hidden'), null, { timeout: 15000 }).catch(() => {});
+  await page.waitForFunction(() => document.querySelector('.ag-studio-ai-status-bar-stop')?.classList.contains('ag-hidden'), null, { timeout: maxSegundos * 1000, polling: 250 });
+  const desde = finNarracion + 0.4;
+  const hasta = ahora() - 0.4;
+  if (hasta - desde < 1.5) return 0;
+  cortes.push({ desde, hasta });
+  return hasta - desde;
+}
+const avisoCorte = (seg) => (seg ? `⏩ ${Math.round(seg)} s of agent work skipped · ` : '');
 
 /* ---------- Acciones sobre la app ---------- */
 
@@ -84,7 +101,7 @@ async function crearYEnviar() {
 
 const datos = {};
 const ACCIONES = {
-  intro: () => tarjeta(`<h1>Cobra <span>🐍💸</span></h1><p>The AI collections agent for freelancers paid with PayPal.</p><span class="chip">PayPal Invoicing v2 + Webhooks</span><span class="chip">Workers AI: Llama 3.3 + Whisper</span>`),
+  intro: () => tarjeta(`<h1>Cobra <span>🐍💸</span></h1><p>The AI collections agent for freelancers paid with PayPal.</p><span class="chip">PayPal Invoicing v2 + Webhooks</span><span class="chip">Workers AI: Llama 3.3 + Whisper</span><span class="chip">AG Studio</span>`),
   problema: () => tarjeta(`<h1>Getting paid is the hard part</h1><ul><li>Invoices are tedious, often done on a phone between tasks.</li><li>Chasing late payers is awkward, so invoices sit unpaid.</li><li>Local rules are invisible to global tools: Argentina’s <b>monotributo</b> income cap, measured in pesos.</li></ul>`),
   async chat() {
     await abrirApp();
@@ -146,11 +163,37 @@ const ACCIONES = {
       t.style.borderRadius = '16px';
     });
   },
-  async consulta() {
-    await page.evaluate(() => (document.querySelector('.tablero').style.outline = 'none'));
-    await escribir('Who owes me money?');
+  async insights() {
+    await page.goto(`${URL_APP}insights.html?ejemplo=1`);
+    await page.waitForFunction(() => window.__studio && window.__harness, null, { timeout: 60000 });
+    await esperar(600);
+    await rotulo();
   },
-  cierre: () => tarjeta(`<h1>Cobra <span>🐍💸</span></h1><p>Bill in one sentence. Let the agent do the chasing.</p><span class="chip">PayPal Invoicing v2</span><span class="chip">PayPal Webhooks (verified)</span><span class="chip">Llama 3.3 · Whisper on Workers AI</span><span class="chip">Cloudflare Workers + D1</span><p style="margin-top:28px;font-size:20px;opacity:.75">Live demo: cobra.peshino2012.workers.dev · Code: github.com/Peshino2012/cobra-paypal</p>`),
+  async insightsAgente() {
+    await page.locator('.ag-studio-ai-prompt-starter', { hasText: 'Chase the most overdue' }).click();
+    const cortado = await esperarAgente();
+    // La tarjeta del borrador aparece cerrada: se abre para que se vean el asunto, el mensaje y el botón.
+    if (!(await page.locator('.cobra-borrador textarea').last().isVisible().catch(() => false))) {
+      await page.getByText('Payment reminder draft').last().click().catch(() => {});
+    }
+    if (cortado) await rotulo(avisoCorte(cortado) + rotuloActual);
+    await esperar(2500);
+  },
+  async insightsGrafico() {
+    const widgets = () => page.evaluate(() => Object.keys(window.__studio.getState().pages[0].widgets).length);
+    const antes = await widgets();
+    const caja = page.getByRole('textbox', { name: 'Message input' });
+    await caja.click();
+    await caja.pressSequentially('Add a bar chart of the collected amount by client', { delay: 28 });
+    await page.getByRole('button', { name: 'Send message' }).click();
+    const cortado = await esperarAgente();
+    if ((await widgets()) <= antes) errores.push('Insights: los agentes de Studio no agregaron el gráfico');
+    // Studio pone los widgets nuevos al final del lienzo.
+    await page.locator('.ag-studio-layout').evaluate((e) => e.scrollTo({ top: e.scrollHeight, behavior: 'smooth' }));
+    await rotulo(`${avisoCorte(cortado)}chart added by AG Studio’s agents`);
+    await esperar(3500);
+  },
+  cierre: () => tarjeta(`<h1>Cobra <span>🐍💸</span></h1><p>Bill in one sentence. Let the agent do the chasing.</p><span class="chip">PayPal Invoicing v2</span><span class="chip">PayPal Webhooks (verified)</span><span class="chip">AG Studio + Studio Agent Framework</span><span class="chip">Llama 3.3 · Whisper · gpt-oss on Workers AI</span><span class="chip">Cloudflare Workers + D1</span><p style="margin-top:28px;font-size:20px;opacity:.75">Live demo: cobra.peshino2012.workers.dev · Code: github.com/Peshino2012/cobra-paypal</p>`),
 };
 
 const marcas = [];
@@ -158,7 +201,8 @@ for (const e of ESCENAS) {
   const inicio = ahora();
   marcas.push({ id: e.id, t: inicio });
   rotuloActual = e.rotulo || '';
-  if (['enviar', 'vozNota', 'vozBorrador', 'recordatorio', 'pagado', 'tablero', 'consulta'].includes(e.id)) await rotulo();
+  finNarracion = inicio + (DUR[e.id] || 0) + 0.6;
+  if (['enviar', 'vozNota', 'vozBorrador', 'recordatorio', 'pagado', 'tablero', 'insightsAgente', 'insightsGrafico'].includes(e.id)) await rotulo();
   await Promise.all([ACCIONES[e.id](), esperar((DUR[e.id] || 0) * 1000 + 600)]);
   console.log(`${e.id}: ${inicio.toFixed(1)}–${ahora().toFixed(1)} s`);
 }
@@ -168,6 +212,7 @@ const ruta = await page.video().path();
 await ctx.close();
 await navegador.close();
 renameSync(ruta, `${OUT}video.webm`);
-writeFileSync(`${OUT}marcas.json`, JSON.stringify({ marcas, vozInicio: datos.vozInicio, duracionTotal, errores }, null, 2));
-console.log(JSON.stringify({ duracionTotal, errores, facturas: [datos.n1, datos.n2] }));
-if (duracionTotal > 178) throw new Error(`El video dura ${duracionTotal.toFixed(0)} s: tiene que durar menos de 3 minutos`);
+writeFileSync(`${OUT}marcas.json`, JSON.stringify({ marcas, vozInicio: datos.vozInicio, duracionTotal, cortes, errores }, null, 2));
+const final = duracionTotal - cortes.reduce((s, c) => s + c.hasta - c.desde, 0);
+console.log(JSON.stringify({ duracionTotal, final, cortes, errores, facturas: [datos.n1, datos.n2] }));
+if (final > 178) throw new Error(`El video dura ${final.toFixed(0)} s: tiene que durar menos de 3 minutos`);
