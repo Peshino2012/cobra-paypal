@@ -1,9 +1,12 @@
 // Prueba de Cobra Insights con el modelo real (Workers AI por REST): abre el tablero con los datos de ejemplo,
 // le pide cosas al asistente de AG Studio y guarda capturas, turnos y tokens en e2e/out-insights/.
 //   CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... node e2e/insights-ia.mjs "pedido 1" "pedido 2"
+// Con URL_APP=https://... prueba la app publicada (con su licencia y su binding de Workers AI) en vez del servidor local.
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import './servidor-local.mjs';
+
+const URL_APP = (process.env.URL_APP || 'http://127.0.0.1:8787').replace(/\/$/, '');
+if (!process.env.URL_APP) await import('./servidor-local.mjs');
 
 const OUT = new URL('./out-insights/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
@@ -14,7 +17,7 @@ const page = await navegador.newPage({ viewport: { width: 1600, height: 960 } })
 const consola = [];
 page.on('console', (m) => ['error', 'warning'].includes(m.type()) && !m.text().includes('*****') && consola.push(`${m.type()}: ${m.text().slice(0, 400)}`));
 page.on('pageerror', (e) => consola.push(`pageerror: ${String(e).slice(0, 400)}`));
-await page.goto('http://127.0.0.1:8787/insights.html?ejemplo=1');
+await page.goto(`${URL_APP}/insights.html?ejemplo=1`);
 await page.waitForFunction(() => window.__studio && window.__harness, null, { timeout: 60000 });
 await page.waitForTimeout(3000);
 await page.screenshot({ path: `${OUT}0-inicio.png` });
@@ -35,8 +38,10 @@ for (const [i, texto] of PEDIDOS.entries()) {
     const ultimo = [...window.__sesion.messages].reverse().find((m) => m.role === 'assistant');
     return {
       estado: window.__sesion.status,
-      turnos: turnos.map((t) => ({ estado: t.respuesta.status, error: t.respuesta.error, usage: t.respuesta.usage, neuronas: t.respuesta.neurons, salida: t.respuesta.output.map((o) => (o.type === 'function_call' ? `→ ${o.name}(${o.arguments.slice(0, 160)})` : o.type === 'message' ? `💬 ${o.content.map((c) => c.text).join('').slice(0, 300)}` : `… ${o.type}`)) })),
+      turnos: turnos.map((t) => ({ agente: t.request?.agentId || t.request?.agent?.id || t.trace?.agentId, estado: t.respuesta.status, error: t.respuesta.error, usage: t.respuesta.usage, neuronas: t.respuesta.neurons, salida: t.respuesta.output.map((o) => (o.type === 'function_call' ? `→ ${o.name}(${o.arguments.slice(0, 160)})` : o.type === 'message' ? `💬 ${o.content.map((c) => c.text).join('').slice(0, 300)}` : `… ${o.type}`)) })),
       respuesta: ultimo ? JSON.stringify(ultimo).slice(0, 1500) : null,
+      // Lo que muestra el hilo, incluidos los errores de las delegaciones (que no siempre pasan por el adaptador).
+      hilo: JSON.stringify(window.__sesion.messages).slice(-6000),
     };
   }, desde);
   const tokens = r.turnos.reduce((a, t) => ({ entrada: a.entrada + (t.usage?.inputTokens || 0), salida: a.salida + (t.usage?.outputTokens || 0), neuronas: a.neuronas + (t.neuronas || 0) }), { entrada: 0, salida: 0, neuronas: 0 });
