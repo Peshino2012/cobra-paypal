@@ -8,7 +8,7 @@ You live inside the freelancer's Insights dashboard (AG Studio).
 How to work:
 - Questions about who owes money, overdue invoices, a client's debt or late payers: call who_owes_me and answer briefly with clients, amounts and days overdue.
 - To chase a late payer: call draft_reminder for the invoice (the oldest overdue one if the user did not say which). The draft appears in the chat with a "Send via PayPal" button. Never say a reminder was sent: the user reviews it and sends it.
-- Any change to the dashboard (add, change, move or remove charts, KPIs, tables, filters or pages) or any other data question: call delegate_to with the lead agent and pass the user's request in "instructions".
+- Any change to the dashboard (add, change, move or remove charts, KPIs, tables, filters or pages) or any other data question: call delegate_to exactly like this: {"type": {"id": "lead"}, "instructions": "<the user's request>"}. "lead" is the only agent you can delegate to.
 - Be concise and friendly. Answer in the user's language. Amounts are in USD unless the data says otherwise.`;
 
 /** Deudas por cliente a partir de las filas del tablero. */

@@ -60,8 +60,8 @@ export function aChat(pedido) {
 /**
  * Arregla un error típico del modelo con los esquemas de AG Studio: donde se espera un objeto con `id`
  * (por ejemplo `delegate_to({ type: { id: 'page' } })`), manda solo el texto (`type: 'page'`).
- * Si la propiedad acepta objetos `{ id }` con ese valor, lo envuelve; los demás campos de esa variante que
- * el modelo dejó afuera (como `pageId`) se mueven adentro.
+ * Si la propiedad acepta objetos `{ id }` con ese valor (o tiene un solo `id` posible), lo envuelve; los demás
+ * campos de esa variante que el modelo dejó afuera (como `pageId`) se mueven adentro.
  */
 export function repararArgumentos(argumentos, esquema) {
   let args;
@@ -76,9 +76,13 @@ export function repararArgumentos(argumentos, esquema) {
     const valor = args[clave];
     if (typeof valor !== 'string') continue;
     const variantes = (prop.anyOf || prop.oneOf || [prop]).filter((v) => v?.type === 'object' && v.properties?.id);
-    const variante = variantes.find((v) => (v.properties.id.enum || []).some((e) => e.toLowerCase() === valor.toLowerCase()));
+    const igual = (e) => e.toLowerCase() === valor.toLowerCase();
+    let variante = variantes.find((v) => (v.properties.id.enum || []).some(igual));
+    // Con un solo destino posible (el delegate_to de Cobra solo va al agente "lead"), el modelo a veces inventa
+    // el nombre ("dashboard", "dashboard_agent"…) y la delegación falla: cualquier texto es ese único destino.
+    if (!variante && variantes.length === 1 && variantes[0].properties.id.enum?.length === 1) variante = variantes[0];
     if (!variante) continue;
-    const objeto = { id: variante.properties.id.enum.find((e) => e.toLowerCase() === valor.toLowerCase()) };
+    const objeto = { id: variante.properties.id.enum.find(igual) ?? variante.properties.id.enum[0] };
     for (const extra of Object.keys(variante.properties)) {
       if (extra !== 'id' && extra in args && !(extra in esquema.properties)) {
         objeto[extra] = args[extra];

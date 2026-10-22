@@ -103,6 +103,20 @@ test('se arregla delegate_to cuando el modelo manda el agente como texto', () =>
   assert.deepEqual(JSON.parse(r.output[0].arguments), { type: { id: 'page' }, instructions: 'x' });
 });
 
+test('con un solo destino posible, el nombre inventado por el modelo va a ese destino', () => {
+  // Así arma AG Studio el delegate_to de Cobra (tools.delegateTo(['lead'])).
+  const esquema = {
+    type: 'object',
+    properties: {
+      type: { anyOf: [{ type: 'object', properties: { id: { type: 'string', enum: ['lead'] } }, required: ['id'], additionalProperties: false }] },
+      instructions: { type: 'string' },
+    },
+  };
+  for (const inventado of ['dashboard', 'dashboard_modification', 'dashboard_agent', 'Lead']) {
+    assert.deepEqual(JSON.parse(repararArgumentos(JSON.stringify({ type: inventado, instructions: 'Add a chart' }), esquema)), { type: { id: 'lead' }, instructions: 'Add a chart' });
+  }
+});
+
 test('límite de turnos por espacio y por hora', async () => {
   const db = crearD1();
   const ahora = new Date('2026-10-20T15:10:00Z');
