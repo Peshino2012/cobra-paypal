@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { deudas } from '../public/insights-agente.js';
 import { atraso } from '../public/insights-marcador.js';
 import { facturasEjemplo } from '../public/insights-ejemplo.js';
+import { GRILLA, REPORTE } from '../public/insights-reporte.js';
 
 const fila = (client, invoice, outstanding, overdue, dias) => ({ client, invoice, amount: outstanding || 100, currency: 'USD', outstanding, overdue_amount: overdue, days_overdue: dias, reminders_sent: 0, due: new Date('2026-10-01T12:00:00Z') });
 
@@ -29,4 +30,17 @@ test('los datos de ejemplo siempre tienen facturas vencidas, por vencer y pagada
   assert.ok(f.some((x) => x.estado === 'SENT' && x.vence < '2026-10-19'), 'vencidas');
   assert.ok(f.some((x) => x.estado === 'SENT' && x.vence >= '2026-10-19'), 'por vencer');
   assert.ok(f.every((x) => x.cliente && x.monto > 0 && x.moneda === 'USD'));
+});
+
+test('el tablero usa la grilla de 24 columnas que suponen los agentes de AG Studio', () => {
+  // Con 12 columnas, los agentes ubicaban los gráficos nuevos entre las columnas 12 y 23: fuera del lienzo.
+  assert.equal(GRILLA.columns, 24);
+  const piezas = Object.values(REPORTE.pages[0].widgetLayout);
+  for (const l of piezas) assert.ok(l.xTrack >= 0 && l.xTrack + l.xSpan <= GRILLA.columns && l.yTrack >= 0, JSON.stringify(l));
+  for (const [i, a] of piezas.entries()) {
+    for (const b of piezas.slice(i + 1)) {
+      const choca = a.xTrack < b.xTrack + b.xSpan && a.xTrack + a.xSpan > b.xTrack && a.yTrack < b.yTrack + b.ySpan && a.yTrack + a.ySpan > b.yTrack;
+      assert.ok(!choca, `${JSON.stringify(a)} y ${JSON.stringify(b)} se pisan`);
+    }
+  }
 });

@@ -6,7 +6,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 process.env.IA_FALSA ||= '1';
 await import('./servidor-local.mjs');
 
-const W = (id, type, x, y, w, h) => ({ id, type, x, y, w, h });
+// Posiciones pensadas en 12 columnas y filas de 40 px; el tablero usa la grilla de 24 × 20 px (GRILLA), la que
+// suponen los agentes de AG Studio, así que se duplican.
+const W = (id, type, x, y, w, h) => ({ id, type, x: x * 2, y: y * 2, w: w * 2, h: h * 2 });
 const titulo = (text) => ({ title: { enabled: true, text } });
 const PIEZAS = [
   [W('kpi-pendiente', 'value', 0, 0, 3, 3), { format: titulo('Outstanding'), dataMapping: { value: [{ id: 'invoices.outstanding', aggregation: 'sum' }] } }],
@@ -52,7 +54,7 @@ const FILTROS = [
 // El widget propio (Collections scoreboard) no tiene esquema de formato para la IA: va directo al estado.
 const MARCADOR = {
   id: 'marcador',
-  layout: { xTrack: 7, yTrack: 3, xSpan: 5, ySpan: 8 },
+  layout: { xTrack: 14, yTrack: 6, xSpan: 10, ySpan: 16 },
   estado: {
     type: 'cobra-scoreboard',
     format: { title: { enabled: true, text: 'Collections scoreboard' } },
@@ -106,7 +108,7 @@ const malos = resultado.log.filter((l) => !l[1]);
 if (!malos.length) {
   writeFileSync(
     new URL('../public/insights-reporte.js', import.meta.url),
-    `// Tablero inicial de Cobra Insights (generado por e2e/armar-reporte.mjs con las herramientas de AG Studio).\nexport const REPORTE = ${JSON.stringify(resultado.estado, null, 2)};\n`,
+    `// Tablero inicial de Cobra Insights (generado por e2e/armar-reporte.mjs con las herramientas de AG Studio).\n// Grilla de 24 columnas: es la que suponen los agentes de AG Studio al ubicar widgets nuevos (con 12, los\n// ponían fuera del lienzo).\nexport const GRILLA = { columns: 24, rowHeight: 20 };\nexport const REPORTE = ${JSON.stringify(resultado.estado, null, 2)};\n`,
   );
   console.log('Guardado en public/insights-reporte.js');
 }

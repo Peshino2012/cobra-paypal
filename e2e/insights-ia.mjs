@@ -43,6 +43,11 @@ for (const [i, texto] of PEDIDOS.entries()) {
   resultados.push({ pedido: texto, segundos: Math.round((Date.now() - t0) / 1000), tokens, ...r });
   console.log(JSON.stringify(resultados.at(-1), null, 2));
   await page.screenshot({ path: `${OUT}${i + 1}-pedido.png` });
+  // Los widgets nuevos van al final del lienzo: captura de abajo y posición de cada widget.
+  await page.locator('.ag-studio-layout').evaluate((e) => e.scrollTo({ top: e.scrollHeight })).catch(() => {});
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: `${OUT}${i + 1}-abajo.png` });
+  resultados.at(-1).layout = await page.evaluate(() => window.__studio.getState().pages[0].widgetLayout);
 }
 writeFileSync(`${OUT}resultados.json`, JSON.stringify({ resultados, consola }, null, 2));
 console.log(consola.join('\n'));

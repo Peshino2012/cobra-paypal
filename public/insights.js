@@ -1,6 +1,6 @@
 // Cobra Insights: tablero de AG Studio sobre las facturas del espacio (o datos de ejemplo).
 import { facturasEjemplo } from './insights-ejemplo.js';
-import { REPORTE } from './insights-reporte.js';
+import { GRILLA, REPORTE } from './insights-reporte.js';
 import { crearHarness, VISTA_HERRAMIENTAS } from './insights-agente.js';
 import { MARCADOR, TIPO_MARCADOR } from './insights-marcador.js';
 
@@ -161,7 +161,7 @@ async function iniciar() {
   const studio = createStudio(document.getElementById('studio'), {
     mode: 'edit',
     initialState: params.has('vacio') ? undefined : REPORTE,
-    layout: { columns: 12, rowHeight: 40 },
+    layout: GRILLA,
     theme: TEMA,
     widgets: (config) => createWidgets({ additionalTypes: [MARCADOR], menu: [{ label: 'Cobra', widgetIds: [TIPO_MARCADOR] }, ...config.menu] }),
     panels: { edit: { left: ['ai'], right: ['filters', 'edit', 'data'] } },

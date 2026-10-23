@@ -1,4 +1,7 @@
 // Tablero inicial de Cobra Insights (generado por e2e/armar-reporte.mjs con las herramientas de AG Studio).
+// Grilla de 24 columnas: es la que suponen los agentes de AG Studio al ubicar widgets nuevos (con 12, los
+// ponían fuera del lienzo).
+export const GRILLA = { columns: 24, rowHeight: 20 };
 export const REPORTE = {
   "pages": [
     {
@@ -230,56 +233,56 @@ export const REPORTE = {
         "kpi-pendiente": {
           "xTrack": 0,
           "yTrack": 0,
-          "xSpan": 3,
-          "ySpan": 3
+          "xSpan": 6,
+          "ySpan": 6
         },
         "kpi-vencido": {
-          "xTrack": 3,
-          "yTrack": 0,
-          "xSpan": 3,
-          "ySpan": 3
-        },
-        "kpi-cobrado": {
           "xTrack": 6,
           "yTrack": 0,
-          "xSpan": 3,
-          "ySpan": 3
+          "xSpan": 6,
+          "ySpan": 6
+        },
+        "kpi-cobrado": {
+          "xTrack": 12,
+          "yTrack": 0,
+          "xSpan": 6,
+          "ySpan": 6
         },
         "kpi-dias": {
-          "xTrack": 9,
+          "xTrack": 18,
           "yTrack": 0,
-          "xSpan": 3,
-          "ySpan": 3
+          "xSpan": 6,
+          "ySpan": 6
         },
         "deben": {
           "xTrack": 0,
-          "yTrack": 3,
-          "xSpan": 7,
-          "ySpan": 8
+          "yTrack": 6,
+          "xSpan": 14,
+          "ySpan": 16
         },
         "estados": {
-          "xTrack": 7,
-          "yTrack": 11,
-          "xSpan": 5,
-          "ySpan": 8
+          "xTrack": 14,
+          "yTrack": 22,
+          "xSpan": 10,
+          "ySpan": 16
         },
         "cobrado-mes": {
           "xTrack": 0,
-          "yTrack": 11,
-          "xSpan": 7,
-          "ySpan": 8
+          "yTrack": 22,
+          "xSpan": 14,
+          "ySpan": 16
         },
         "demoras": {
           "xTrack": 0,
-          "yTrack": 19,
-          "xSpan": 12,
-          "ySpan": 7
+          "yTrack": 38,
+          "xSpan": 24,
+          "ySpan": 14
         },
         "marcador": {
-          "xTrack": 7,
-          "yTrack": 3,
-          "xSpan": 5,
-          "ySpan": 8
+          "xTrack": 14,
+          "yTrack": 6,
+          "xSpan": 10,
+          "ySpan": 16
         }
       },
       "filter": {
