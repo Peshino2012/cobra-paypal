@@ -5,6 +5,7 @@ import { deudas } from '../public/insights-agente.js';
 import { atraso } from '../public/insights-marcador.js';
 import { facturasEjemplo } from '../public/insights-ejemplo.js';
 import { GRILLA, REPORTE } from '../public/insights-reporte.js';
+import { ajustarNuevos, idsDe, MINIMO } from '../public/insights-ajuste.js';
 
 const fila = (client, invoice, outstanding, overdue, dias) => ({ client, invoice, amount: outstanding || 100, currency: 'USD', outstanding, overdue_amount: overdue, days_overdue: dias, reminders_sent: 0, due: new Date('2026-10-01T12:00:00Z') });
 
@@ -43,4 +44,25 @@ test('el tablero usa la grilla de 24 columnas que suponen los agentes de AG Stud
       assert.ok(!choca, `${JSON.stringify(a)} y ${JSON.stringify(b)} se pisan`);
     }
   }
+});
+
+test('un gráfico nuevo que quedó chico se agranda una sola vez, sin pisar a nadie', () => {
+  const vistos = idsDe(REPORTE);
+  assert.equal(ajustarNuevos(REPORTE, vistos), null, 'el tablero inicial no se toca');
+  // Lo que hizo el agente en la prueba real: un gráfico de 6 × 6 abajo a la izquierda.
+  const estado = structuredClone(REPORTE);
+  estado.pages[0].widgets.nuevo = { type: 'bar-chart-grouped' };
+  estado.pages[0].widgetLayout.nuevo = { xTrack: 0, yTrack: 52, xSpan: 6, ySpan: 6 };
+  const ajustado = ajustarNuevos(estado, vistos);
+  assert.deepEqual(ajustado.pages[0].widgetLayout.nuevo, { xTrack: 0, yTrack: 52, xSpan: MINIMO.xSpan, ySpan: MINIMO.ySpan });
+  assert.equal(ajustarNuevos(ajustado, vistos), null, 'si después lo achican a mano, se respeta');
+  // Uno que al agrandarse pisaría a otro va abajo de todo; un KPI chico queda como está.
+  const otro = structuredClone(REPORTE);
+  otro.pages[0].widgets.medio = { type: 'line-chart' };
+  otro.pages[0].widgetLayout.medio = { xTrack: 20, yTrack: 0, xSpan: 4, ySpan: 4 };
+  otro.pages[0].widgets.kpi = { type: 'value' };
+  otro.pages[0].widgetLayout.kpi = { xTrack: 0, yTrack: 60, xSpan: 4, ySpan: 4 };
+  const l = ajustarNuevos(otro, idsDe(REPORTE)).pages[0].widgetLayout;
+  assert.deepEqual(l.medio, { xTrack: 0, yTrack: 64, xSpan: 12, ySpan: 16 });
+  assert.deepEqual(l.kpi, { xTrack: 0, yTrack: 60, xSpan: 4, ySpan: 4 });
 });

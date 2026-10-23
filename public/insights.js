@@ -1,6 +1,7 @@
 // Cobra Insights: tablero de AG Studio sobre las facturas del espacio (o datos de ejemplo).
 import { facturasEjemplo } from './insights-ejemplo.js';
 import { GRILLA, REPORTE } from './insights-reporte.js';
+import { ajustarNuevos, idsDe } from './insights-ajuste.js';
 import { crearHarness, VISTA_HERRAMIENTAS } from './insights-agente.js';
 import { MARCADOR, TIPO_MARCADOR } from './insights-marcador.js';
 
@@ -158,10 +159,18 @@ async function iniciar() {
     aviso.textContent = estado.facturas.length ? 'Showing sample data (fictional clients). Switch to "My invoices" to see yours.' : 'You have no invoices yet, so this is sample data (fictional clients). Bill your first client in the chat and your own numbers appear here.';
   }
   const datos = filas(ejemplo ? facturasEjemplo() : estado.facturas);
+  const inicial = params.has('vacio') ? undefined : REPORTE;
+  const vistos = idsDe(inicial);
   const studio = createStudio(document.getElementById('studio'), {
     mode: 'edit',
-    initialState: params.has('vacio') ? undefined : REPORTE,
+    initialState: inicial,
     layout: GRILLA,
+    // Los gráficos que agregan los agentes de Studio a veces quedan muy chicos: se agrandan una vez, al aparecer.
+    onStateUpdated: () =>
+      setTimeout(() => {
+        const nuevo = ajustarNuevos(studio.getState(), vistos);
+        if (nuevo) studio.setState(nuevo);
+      }),
     theme: TEMA,
     widgets: (config) => createWidgets({ additionalTypes: [MARCADOR], menu: [{ label: 'Cobra', widgetIds: [TIPO_MARCADOR] }, ...config.menu] }),
     panels: { edit: { left: ['ai'], right: ['filters', 'edit', 'data'] } },
